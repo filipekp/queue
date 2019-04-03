@@ -8,5 +8,15 @@
       "name": "Pavel Filípek",
       "email": "pavel@filipek-czech.cz"
     }
-  ]
+  ],
+  "autoload" : {
+    "classmap": ["src"]
+  },
+  "bin": ["bin/runQueue.php", "bin/runQueueProcessorChecker.php"],
+  "require": {
+    "ext-mysqli": "*",
+    "ext-curl": "*",
+    "ext-json": "*",
+    "filipekp/helpers": "^1"
+  }
 }
