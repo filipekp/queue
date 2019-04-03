@@ -1,0 +1,12 @@
+{
+  "name": "filipekp/queue",
+  "description": "",
+  "minimum-stability": "stable",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "Pavel Filípek",
+      "email": "pavel@filipek-czech.cz"
+    }
+  ]
+}
