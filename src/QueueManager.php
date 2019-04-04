@@ -162,4 +162,51 @@
       
       return self::$instance;
     }
+  
+    public function install() {
+      $table1 = SqlTable::create('queue');
+      $createTable1 = "
+        CREATE TABLE `{$table1->getFullName()}` (
+          `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+          `group_id` INT(11) UNSIGNED NULL DEFAULT NULL,
+          `parent_group_id` INT(11) UNSIGNED NULL DEFAULT NULL,
+          `queue_processor_id` INT(11) NOT NULL,
+          `url` TEXT NOT NULL COLLATE 'utf8_czech_ci',
+          `data` LONGTEXT NOT NULL COLLATE 'utf8_czech_ci',
+          `state` ENUM('new','process','wait','error','done') NOT NULL DEFAULT 'new' COLLATE 'utf8_czech_ci',
+          `message` TEXT NULL COLLATE 'utf8_czech_ci',
+          `date_added` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          `date_start` DATETIME NULL DEFAULT NULL,
+          `date_end` DATETIME NULL DEFAULT NULL,
+          PRIMARY KEY (`id`),
+          INDEX `FK_oc_queue_oc_queue_processor` (`queue_processor_id`),
+          INDEX `group` (`group_id`),
+          INDEX `FK_oc_queue_oc_queue` (`parent_group_id`),
+          CONSTRAINT `FK_oc_queue_oc_queue` FOREIGN KEY (`parent_group_id`) REFERENCES `oc_queue` (`group_id`),
+          CONSTRAINT `FK_oc_queue_oc_queue_processor` FOREIGN KEY (`queue_processor_id`) REFERENCES `oc_queue_processor` (`id`)
+        )
+        COLLATE='utf8_czech_ci'
+        ENGINE=InnoDB
+        AUTO_INCREMENT=1;
+      ";
+      
+      $table2 = SqlTable::create('queue_processor');
+      $createTable2 = "
+        CREATE TABLE `{$table2->getFullName()}` (
+          `id` INT(11) NOT NULL AUTO_INCREMENT,
+          `name` VARCHAR(32) NOT NULL COLLATE 'utf8_czech_ci',
+          `state` ENUM('up','down') NOT NULL DEFAULT 'down' COLLATE 'utf8_czech_ci',
+          `updated` DATETIME NOT NULL,
+          PRIMARY KEY (`id`)
+        )
+        COLLATE='utf8_czech_ci'
+        ENGINE=InnoDB
+        AUTO_INCREMENT=1;
+      ";
+      
+      $t1R = self::$db->query($createTable1);
+      self::printMsg((($t1R) ? 'OK' : 'ERROR'), "Table `{$table1->getFullName()}` is" . (($t1R) ? '' : ' not') . " created.");
+      $t2R = self::$db->query($createTable2);
+      self::printMsg((($t2R) ? 'OK' : 'ERROR'), "Table `{$table2->getFullName()}` is" . (($t2R) ? '' : ' not') . " created.");
+    }
   }
