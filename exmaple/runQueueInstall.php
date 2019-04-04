@@ -8,15 +8,12 @@
   use filipekp\queue\QueueManager;
   
   try {
+    QueueManager::printMsg('OK', 'Begin install ...');
     $queueManager = QueueManager::getInstance('localhost', 'root', 'root', 'database_name');
     $queueManager->setDbPrefix('prefix_');
+    $queueManager->install();
     
-    /* Promaze stare pozadavky z fronty */
-    $queueManager->deleteOldQueueItems();
-    
-    $queueCheckerProcessor = $queueManager::getQueueCheckerInstance();
-    $queueCheckerProcessor->testQueueProcessor();
+    QueueManager::printMsg('OK', 'End install.');
   } catch (Exception $e) {
     QueueManager::printMsg('ERROR', $e->getMessage());
   }
-  

@@ -14,11 +14,15 @@
     exit(-1);
   }
   
-  QueueManager::printMsg('OK', 'Starting queue for processor ' . $queueProcessorId . '...');
-  $queueManager = QueueManager::getInstance('localhost', 'root', 'root', 'database_name');
-  $queueManager->setDbPrefix('prefix_');
-  
-  $queueProcessor = $queueManager::getQueueInstance($queueProcessorId);
-  QueueManager::printMsg('OK', 'Queue started.');
-  
-  $queueProcessor->run();
+  try {
+    QueueManager::printMsg('OK', 'Starting queue for processor ' . $queueProcessorId . '...');
+    $queueManager = QueueManager::getInstance('localhost', 'root', 'root', 'database_name');
+    $queueManager->setDbPrefix('prefix_');
+    
+    $queueProcessor = $queueManager::getQueueInstance($queueProcessorId);
+    QueueManager::printMsg('OK', 'Queue started.');
+    
+    $queueProcessor->run();
+  } catch (Exception $e) {
+    QueueManager::printMsg('ERROR', $e->getMessage());
+  }
