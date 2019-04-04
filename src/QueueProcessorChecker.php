@@ -22,6 +22,8 @@
     protected $from = NULL;
     protected $to = NULL;
     
+    protected $nameRunQueue = 'queue.php';
+    
     public function __construct(Database $database) {
       self::$db = $database;
     }
@@ -36,7 +38,7 @@
       if ($result->num_rows > 0) {
         foreach ($result->rows as $queueProcessor) {
           $currentState = $queueProcessor['state'];
-          if (exec('ps a | grep php\ queue.php\ ' . $queueProcessor['id'] . '$ | wc -l') == 0) {
+          if (exec('ps a | grep php\ ' . $this->nameRunQueue .'\ ' . $queueProcessor['id'] . '$ | wc -l') == 0) {
             $newState = 'down';
           } else {
             $newState = 'up';
@@ -75,6 +77,20 @@
         $this->serverName   = ((is_null($serverName)) ? $_SERVER['SERVER_NAME'] : $serverName);
         $this->from         = ((is_null($from)) ? 'queuechecker@' . $_SERVER['SERVER_NAME'] : $from);
       }
+      
+      return $this;
+    }
+  
+    /**
+     * Nastaví název scriptu pro běžící proces.
+     * @param $name
+     *
+     * @return $this
+     */
+    public function setNameRunQueue($name) {
+      $this->nameRunQueue = $name;
+      
+      return $this;
     }
   
     /**
