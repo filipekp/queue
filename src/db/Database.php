@@ -33,6 +33,7 @@
      * @throws \Exception
      */
     public function __construct($adaptor, $hostname, $username, $password, $database, $port = NULL) {
+      $adaptor = ucfirst($adaptor);
       $adaptorClass = 'filipekp\queue\db\adaptors\\' . $adaptor;
       
       if (isset($_SESSION['_tracy']['sql_log'])) {

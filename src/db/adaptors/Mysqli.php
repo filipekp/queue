@@ -9,7 +9,7 @@
    * @copyright © 2019, Proclient s.r.o.
    * @created   03.04.2019
    */
-  final class MySQLi implements IAdaptor
+  final class Mysqli implements IAdaptor
   {
     private $connection;
     private $isMultiQuery  = FALSE;
