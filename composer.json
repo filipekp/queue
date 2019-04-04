@@ -12,7 +12,6 @@
   "autoload" : {
     "classmap": ["src"]
   },
-  "bin": ["bin/runQueue.php", "bin/runQueueProcessorChecker.php"],
   "require": {
     "ext-mysqli": "*",
     "ext-curl": "*",

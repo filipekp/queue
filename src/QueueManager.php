@@ -163,6 +163,9 @@
       return self::$instance;
     }
   
+    /**
+     * Instalace tabulek
+     */
     public function install() {
       $table1 = SqlTable::create('queue');
       $createTable1 = "
