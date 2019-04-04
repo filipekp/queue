@@ -22,16 +22,8 @@
     protected $from = NULL;
     protected $to = NULL;
     
-    public function __construct(Database $database, $notifyToMail = FALSE, $to = NULL, $serverName = NULL, $from = NULL) {
+    public function __construct(Database $database) {
       self::$db = $database;
-  
-      $this->notifyToMail = $notifyToMail;
-      if (is_null($to)) {
-        $this->notifyToMail = FALSE;
-      }
-      $this->to           = $to;
-      $this->serverName   = ((is_null($serverName)) ? $_SERVER['SERVER_NAME'] : $serverName);
-      $this->from         = ((is_null($from)) ? 'queuechecker@' . $_SERVER['SERVER_NAME'] : $from);
     }
   
     /**
@@ -64,6 +56,24 @@
             );
           }
         }
+      }
+    }
+  
+    /**
+     * Notifikovat o stavu fronty na email.
+     *
+     * @param bool $notifyToMail
+     * @param null $to
+     * @param null $serverName
+     * @param null $from
+     */
+    public function setNotifyToMail($notifyToMail, $to, $serverName = NULL, $from = NULL) {
+      $this->notifyToMail = $notifyToMail;
+  
+      if ($this->notifyToMail) {
+        $this->to           = $to;
+        $this->serverName   = ((is_null($serverName)) ? $_SERVER['SERVER_NAME'] : $serverName);
+        $this->from         = ((is_null($from)) ? 'queuechecker@' . $_SERVER['SERVER_NAME'] : $from);
       }
     }
   
