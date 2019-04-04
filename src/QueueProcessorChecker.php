@@ -75,7 +75,7 @@
       if ($this->notifyToMail) {
         $this->to           = $to;
         $this->serverName   = ((is_null($serverName)) ? $_SERVER['SERVER_NAME'] : $serverName);
-        $this->from         = ((is_null($from)) ? 'queuechecker@' . $_SERVER['SERVER_NAME'] : $from);
+        $this->from         = ((is_null($from)) ? 'queuechecker@' . $this->serverName : $from);
       }
       
       return $this;
