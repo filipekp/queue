@@ -105,7 +105,7 @@
     public function deleteOldQueueItems() {
       $table = SqlTable::create('queue');
       $filter = SqlFilter::create()
-        ->compare($table->column('date_added'), '<', date('Y-m-d H:i:s', strtotime('-7 days')));
+        ->compare('date_added', '<', date('Y-m-d H:i:s', strtotime('-7 days')));
       
       self::$db->query("DELETE FROM {$table} WHERE {$filter}");
     }
