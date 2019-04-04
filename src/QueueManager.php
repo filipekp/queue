@@ -207,9 +207,9 @@
         AUTO_INCREMENT=1;
       ";
       
-      $t1R = self::$db->query($createTable1);
-      self::printMsg((($t1R) ? 'OK' : 'ERROR'), "Table `{$table1->getFullName()}` is" . (($t1R) ? '' : ' not') . " created.");
       $t2R = self::$db->query($createTable2);
       self::printMsg((($t2R) ? 'OK' : 'ERROR'), "Table `{$table2->getFullName()}` is" . (($t2R) ? '' : ' not') . " created.");
+      $t1R = self::$db->query($createTable1);
+      self::printMsg((($t1R) ? 'OK' : 'ERROR'), "Table `{$table1->getFullName()}` is" . (($t1R) ? '' : ' not') . " created.");
     }
   }
