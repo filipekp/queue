@@ -17,8 +17,21 @@
     /** @var Database|null */
     protected static $db = NULL;
     
-    public function __construct(Database $database) {
+    protected $notifyToMail = FALSE;
+    protected $serverName = NULL;
+    protected $from = NULL;
+    protected $to = NULL;
+    
+    public function __construct(Database $database, $notifyToMail = FALSE, $to = NULL, $serverName = NULL, $from = NULL) {
       self::$db = $database;
+  
+      $this->notifyToMail = $notifyToMail;
+      if (is_null($to)) {
+        $this->notifyToMail = FALSE;
+      }
+      $this->to           = $to;
+      $this->serverName   = ((is_null($serverName)) ? $_SERVER['SERVER_NAME'] : $serverName);
+      $this->from         = ((is_null($from)) ? 'queuechecker@' . $_SERVER['SERVER_NAME'] : $from);
     }
   
     /**
@@ -38,17 +51,17 @@
           }
   
           self::$db->query("UPDATE {$table->getFullName()} SET state = '" . $newState . "', updated = '" . date('Y-m-d H:i:s') . "' WHERE id = " . $queueProcessor['id']);
-          if ($currentState != $newState) {
+          if ($this->notifyToMail && $currentState != $newState) {
             $sender = new Sender();
-            var_dump($sender->sendMail(
-              'Onlinekoupelny.cz - Fronta `' . $queueProcessor['name'] . '` [' . date('d.m.Y H:i:s') . '] - ' . $newState,
+            $sender->sendMail(
+              $this->serverName . ' - Fronta `' . $queueProcessor['name'] . '` [' . date('d.m.Y H:i:s') . '] - ' . $newState,
               'Zpracování fronty procesoru `' . $queueProcessor['name'] . '` ve screenu bylo ' . (($newState == 'down') ? 'zastaveno' : 'obnoveno') . '.',
-              [$this->config->get('config_email')],
-              ['programatori@proclient.cz'],
+              [$this->from],
+              [$this->to],
               [],
               [],
               Sender::MAIL_TYPE_HTML
-            ));
+            );
           }
         }
       }
