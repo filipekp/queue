@@ -94,7 +94,7 @@
           if ($queueResult->num_rows > 0) {
             $currentItem = $queueResult->row;
             $filterCurrentItem = SqlFilter::create()
-              ->compare($table->column('id'), '=', $currentItem['id']);
+              ->compare('id', '=', $currentItem['id']);
             
             self::$db->query("UPDATE {$table->getFullName()} SET state='" . self::STATE_PROCESS . "', date_start='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
             
