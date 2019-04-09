@@ -90,16 +90,20 @@
             ->compare($table->column('state'), '=', 'new')
             ->andL()->compare($table->column('queue_processor_id'), '=', $this->processor);
           $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,2");
-          if ($queueResult->num_rows > 1) {
-            $moreTasks = TRUE;
-          } else {
-            $moreTasks = FALSE;
-          }
           
           if ($queueResult->num_rows > 0) {
             $currentItem = $queueResult->row;
             $filterCurrentItem = SqlFilter::create()
               ->compare($table->column('id'), '=', $currentItem['id']);
+            
+            self::$db->query("UPDATE {$table->getFullName()} SET state='" . self::STATE_PROCESS . "', date_start='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
+            
+            if ($queueResult->num_rows > 1) {
+              $moreTasks = TRUE;
+            } else {
+              $moreTasks = FALSE;
+            }
+          
             
             if (!is_null($currentItem['parent_group_id'])) {
               self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_WAIT . "', date_start='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
@@ -116,7 +120,6 @@
               }
             }
   
-            self::$db->query("UPDATE {$table->getFullName()} SET state='" . self::STATE_PROCESS . "', date_start='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
             
             if (isset($currentItem['url']) && ($url = $currentItem['url'])) {
               QueueManager::printMsg('OK', 'Call URL: ' . $url);

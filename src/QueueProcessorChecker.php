@@ -68,6 +68,8 @@
      * @param null $to
      * @param null $serverName
      * @param null $from
+     *
+     * @return QueueProcessorChecker
      */
     public function setNotifyToMail($notifyToMail, $to, $serverName = NULL, $from = NULL) {
       $this->notifyToMail = $notifyToMail;
