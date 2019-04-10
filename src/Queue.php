@@ -106,7 +106,7 @@
             ->compare($table->column('state'), '=', 'new')
             ->andL()->compare($table->column('queue_processor_id'), '=', $this->processor)
             ->andL()->compare($table->column('processing_PID'), '=', $this->processPID);
-          $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,1");
+          $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,2");
           $currentItem = $queueResult->row;
           
           if ($queueResult->num_rows > 0) {
