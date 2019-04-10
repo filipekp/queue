@@ -15,6 +15,7 @@
     $queueManager->deleteOldQueueItems();
     
     $queueCheckerProcessor = $queueManager::getQueueCheckerInstance();
+    $queueCheckerProcessor->setNameRunQueue('runQueue.php');
     $queueCheckerProcessor->testQueueProcessor();
   } catch (Exception $e) {
     QueueManager::printMsg('ERROR', $e->getMessage());

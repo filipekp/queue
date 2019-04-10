@@ -202,12 +202,8 @@
     public function inTransaction() {
       return $this->inTransaction;
     }
-  
-    public function __destruct() {
-      $this->closeConnection();
-    }
     
-    private function closeConnection() {
+    public function closeConnection() {
       $this->connection->close();
     }
   }

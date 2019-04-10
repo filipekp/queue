@@ -185,7 +185,7 @@
           INDEX `FK_oc_queue_oc_queue_processor` (`queue_processor_id`),
           INDEX `group` (`group_id`),
           INDEX `FK_oc_queue_oc_queue` (`parent_group_id`),
-          CONSTRAINT `FK_oc_queue_oc_queue` FOREIGN KEY (`parent_group_id`) REFERENCES `oc_queue` (`group_id`),
+          CONSTRAINT `FK_oc_queue_oc_queue` FOREIGN KEY (`parent_group_id`) REFERENCES `oc_queue` (`group_id`) ON DELETE CASCADE,
           CONSTRAINT `FK_oc_queue_oc_queue_processor` FOREIGN KEY (`queue_processor_id`) REFERENCES `oc_queue_processor` (`id`)
         )
         COLLATE='utf8_czech_ci'
