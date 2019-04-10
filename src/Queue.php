@@ -90,24 +90,26 @@
         $filterCurrentItem = SqlFilter::create();
         
         try {
-          // blokovani uloh pro muj proces
-          self::$db->beginTransaction();
-            $filterReserveItems = SqlFilter::create()
-              ->compare('state', '=', self::STATE_NEW)
-              ->andL()->isEmpty('processing_PID')
-              ->andL()->compare('queue_processor_id', '=', $this->processor);
-            self::$db->query("UPDATE {$table->getFullName()}	SET	processing_PID = '" . $this->processPID . "' WHERE {$filterReserveItems} ORDER BY date_added ASC, id ASC LIMIT 5");
-            $affected = self::$db->countAffected();
-          self::$db->commit();
+          if (!$moreTasks) {
+            // blokovani uloh pro muj proces
+            self::$db->beginTransaction();
+              $filterReserveItems = SqlFilter::create()
+                ->compare('state', '=', self::STATE_NEW)
+                ->andL()->isEmpty('processing_PID')
+                ->andL()->compare('queue_processor_id', '=', $this->processor);
+              self::$db->query("UPDATE {$table->getFullName()}	SET	processing_PID = '" . $this->processPID . "' WHERE {$filterReserveItems} ORDER BY date_added ASC, id ASC LIMIT 5");
+              $affected = self::$db->countAffected();
+            self::$db->commit();
+          }
           
+          $filter = SqlFilter::create()
+            ->compare($table->column('state'), '=', 'new')
+            ->andL()->compare($table->column('queue_processor_id'), '=', $this->processor)
+            ->andL()->compare($table->column('processing_PID'), '=', $this->processPID);
+          $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,1");
+          $currentItem = $queueResult->row;
           
-          if ($affected > 0) {
-            $filter = SqlFilter::create()
-              ->compare($table->column('state'), '=', 'new')
-              ->andL()->compare($table->column('queue_processor_id'), '=', $this->processor)
-              ->andL()->compare($table->column('processing_PID'), '=', $this->processPID);
-            $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,1");
-            $currentItem = $queueResult->row;
+          if ($queueResult->num_rows > 0) {
             
             $filterCurrentItem = SqlFilter::create()
               ->compare('id', '=', $currentItem['id']);
