@@ -18,6 +18,8 @@
     
     protected $processor = 0;
     protected $requestTimeout = 240;
+    protected $processPID;
+    
   
     const STATE_NEW     = 'new';
     const STATE_PROCESS = 'process';
@@ -28,6 +30,8 @@
     public function __construct(Database $database, $processor) {
       self::$db = $database;
       $this->processor = $processor;
+      
+      $this->processPID = getmypid();
     }
   
     /**
@@ -86,19 +90,31 @@
         $filterCurrentItem = SqlFilter::create();
         
         try {
-          $filter = SqlFilter::create()
-            ->compare($table->column('state'), '=', 'new')
-            ->andL()->compare($table->column('queue_processor_id'), '=', $this->processor);
-          $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,2");
+          // blokovani uloh pro muj proces
+          self::$db->beginTransaction();
+            $filterReserveItems = SqlFilter::create()
+              ->compare('state', '=', self::STATE_NEW)
+              ->andL()->isEmpty('processing_PID')
+              ->andL()->compare('queue_processor_id', '=', $this->processor);
+            self::$db->query("UPDATE {$table->getFullName()}	SET	processing_PID = '" . $this->processPID . "' WHERE {$filterReserveItems} ORDER BY date_added ASC, id ASC LIMIT 5");
+            $affected = self::$db->countAffected();
+          self::$db->commit();
           
-          if ($queueResult->num_rows > 0) {
+          
+          if ($affected > 0) {
+            $filter = SqlFilter::create()
+              ->compare($table->column('state'), '=', 'new')
+              ->andL()->compare($table->column('queue_processor_id'), '=', $this->processor)
+              ->andL()->compare($table->column('processing_PID'), '=', $this->processPID);
+            $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,1");
             $currentItem = $queueResult->row;
+            
             $filterCurrentItem = SqlFilter::create()
               ->compare('id', '=', $currentItem['id']);
             
             self::$db->query("UPDATE {$table->getFullName()} SET state='" . self::STATE_PROCESS . "', date_start='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
             
-            if ($queueResult->num_rows > 1) {
+            if ($affected > 1) {
               $moreTasks = TRUE;
             } else {
               $moreTasks = FALSE;
