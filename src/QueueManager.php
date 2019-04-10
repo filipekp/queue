@@ -29,6 +29,8 @@
     /** @var QueueProcessorChecker */
     protected static $queueChecker = NULL;
     
+    protected static $isSetTimeZone = FALSE;
+    
     /**
      * QueueManager constructor.
      *
@@ -36,8 +38,19 @@
      */
     private function __construct(Database $database) {
       self::$db = $database;
+      self::setTimeZone();
+    }
   
-      date_default_timezone_set('Europe/Prague');
+    /**
+     * Nastaví výchozí timezonu.
+     *
+     * @param string $timeZone
+     */
+    public static function setTimeZone($timeZone = 'Europe/Prague') {
+      if (!self::$isSetTimeZone) {
+        date_default_timezone_set($timeZone);
+        self::$isSetTimeZone = TRUE;
+      }
     }
     
     /**
@@ -48,6 +61,8 @@
      * @param string $worker
      */
     public static function printMsg($type, $msg, $worker = '') {
+      self::setTimeZone();
+      
       $status = date("Y-m-d H:i:s") . ' [' . $type . '] ';
       
       if ($worker != '') {
