@@ -177,6 +177,7 @@
           `url` TEXT NOT NULL COLLATE 'utf8_czech_ci',
           `data` LONGTEXT NOT NULL COLLATE 'utf8_czech_ci',
           `state` ENUM('new','process','wait','error','done') NOT NULL DEFAULT 'new' COLLATE 'utf8_czech_ci',
+          `processing_PID` VARCHAR(32) NULL DEFAULT NULL COLLATE 'utf8_czech_ci',
           `message` TEXT NULL COLLATE 'utf8_czech_ci',
           `date_added` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
           `date_start` DATETIME NULL DEFAULT NULL,
