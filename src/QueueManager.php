@@ -183,6 +183,8 @@
      */
     public function install() {
       $table1 = SqlTable::create('queue');
+      $table2 = SqlTable::create('queue_processor');
+      
       $createTable1 = "
         CREATE TABLE `{$table1->getFullName()}` (
           `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -193,23 +195,22 @@
           `data` LONGTEXT NOT NULL COLLATE 'utf8_czech_ci',
           `state` ENUM('new','process','wait','error','done') NOT NULL DEFAULT 'new' COLLATE 'utf8_czech_ci',
           `processing_PID` VARCHAR(32) NULL DEFAULT NULL COLLATE 'utf8_czech_ci',
-          `message` TEXT NULL COLLATE 'utf8_czech_ci',
+          `message` TEXT NULL DEFAULT NULL COLLATE 'utf8_czech_ci',
           `date_added` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
           `date_start` DATETIME NULL DEFAULT NULL,
           `date_end` DATETIME NULL DEFAULT NULL,
           PRIMARY KEY (`id`),
-          INDEX `FK_oc_queue_oc_queue_processor` (`queue_processor_id`),
+          INDEX `FK_{$table1->getFullName()}_{$table2->getFullName()}` (`queue_processor_id`),
           INDEX `group` (`group_id`),
-          INDEX `FK_oc_queue_oc_queue` (`parent_group_id`),
-          CONSTRAINT `FK_oc_queue_oc_queue` FOREIGN KEY (`parent_group_id`) REFERENCES `oc_queue` (`group_id`) ON DELETE CASCADE,
-          CONSTRAINT `FK_oc_queue_oc_queue_processor` FOREIGN KEY (`queue_processor_id`) REFERENCES `oc_queue_processor` (`id`)
+          INDEX `FK_{$table1->getFullName()}_{$table1->getFullName()}` (`parent_group_id`),
+          CONSTRAINT `FK_{$table1->getFullName()}_{$table1->getFullName()}` FOREIGN KEY (`parent_group_id`) REFERENCES `{$table1->getFullName()}` (`group_id`) ON DELETE CASCADE,
+          CONSTRAINT `FK_{$table1->getFullName()}_{$table2->getFullName()}` FOREIGN KEY (`queue_processor_id`) REFERENCES `{$table2->getFullName()}` (`id`)
         )
         COLLATE='utf8_czech_ci'
         ENGINE=InnoDB
         AUTO_INCREMENT=1;
       ";
       
-      $table2 = SqlTable::create('queue_processor');
       $createTable2 = "
         CREATE TABLE `{$table2->getFullName()}` (
           `id` INT(11) NOT NULL AUTO_INCREMENT,
