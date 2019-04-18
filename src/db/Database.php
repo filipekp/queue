@@ -94,9 +94,9 @@
       $this->log['query_total_time'] = 0;
       $trace                         = debug_backtrace();
       $filename                      = (isset($trace[0]['file'])) ? $trace[0]['file'] : '---';
-      $cmsPath                       = str_replace('upload/system/', '', DIR_SYSTEM);
-      $cmsPath                       = str_replace('public/system/', '', $cmsPath);
-      $pureFile                      = str_replace($cmsPath, '', $filename);
+//      $cmsPath                       = str_replace('upload/system/', '', DIR_SYSTEM);
+//      $cmsPath                       = str_replace('public/system/', '', $cmsPath);
+//      $pureFile                      = str_replace($cmsPath, '', $filename);
       $query_time                    = (microtime(TRUE));
       
       $this->adaptor->tryQuery = 10;
@@ -108,7 +108,7 @@
         $this->log['query_total_time'] = 0;
       }
       $this->log['query_total_time']   = (float)$this->log['query_total_time'] + (float)$exec_time;
-      $this->log['file']               = $pureFile;
+//      $this->log['file']               = $pureFile;
       $this->log['time']               = $exec_time;
       $this->log['query']              = $sql;
       $_SESSION['_tracy']['sql_log'][] = $this->log;
