@@ -87,82 +87,88 @@
       
       $table = SqlTable::create('queue', 'q');
       while (TRUE) {
-        $filterCurrentItem = SqlFilter::create();
-        
         try {
-          if (!$moreTasks) {
-            // blokovani 2 uloh pro muj proces
-            self::$db->beginTransaction();
-              $filterReserveItems = SqlFilter::create()
-                ->compare('state', '=', self::STATE_NEW)
-                ->andL()->isEmpty('processing_PID')
-                ->andL()->compare('queue_processor_id', '=', $this->processor);
-              self::$db->query("UPDATE {$table->getFullName()}	SET	processing_PID = '" . $this->processPID . "' WHERE {$filterReserveItems} ORDER BY date_added ASC, id ASC LIMIT 2");
-              $affected = self::$db->countAffected();
-            self::$db->commit();
-          }
+          $filterCurrentItem = SqlFilter::create();
           
-          $filter = SqlFilter::create()
-            ->compare($table->column('state'), '=', 'new')
-            ->andL()->compare($table->column('queue_processor_id'), '=', $this->processor)
-            ->andL()->compare($table->column('processing_PID'), '=', $this->processPID);
-          $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,2");
-          $currentItem = $queueResult->row;
-          
-          if ($queueResult->num_rows > 0) {
-            
-            $filterCurrentItem = SqlFilter::create()
-              ->compare('id', '=', $currentItem['id']);
-            
-            self::$db->query("UPDATE {$table->getFullName()} SET state='" . self::STATE_PROCESS . "', date_start='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
-            
-            if ($queueResult->num_rows > 1) {
-              $moreTasks = TRUE;
-            } else {
-              $moreTasks = FALSE;
+          try {
+            if (!$moreTasks) {
+              // blokovani 2 uloh pro muj proces
+              self::$db->beginTransaction();
+                $filterReserveItems = SqlFilter::create()
+                  ->compare('state', '=', self::STATE_NEW)
+                  ->andL()->isEmpty('processing_PID')
+                  ->andL()->compare('queue_processor_id', '=', $this->processor);
+                self::$db->query("UPDATE {$table->getFullName()}	SET	processing_PID = '" . $this->processPID . "' WHERE {$filterReserveItems} ORDER BY date_added ASC, id ASC LIMIT 2");
+                $affected = self::$db->countAffected();
+              self::$db->commit();
             }
-          
             
-            if (!is_null($currentItem['parent_group_id'])) {
-              self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_WAIT . "', date_start='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
+            $filter = SqlFilter::create()
+              ->compare($table->column('state'), '=', 'new')
+              ->andL()->compare($table->column('queue_processor_id'), '=', $this->processor)
+              ->andL()->compare($table->column('processing_PID'), '=', $this->processPID);
+            $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,2");
+            $currentItem = $queueResult->row;
+            
+            if ($queueResult->num_rows > 0) {
               
-              $waiting = TRUE;
-              while ($waiting) {
-                $filter2 = SqlFilter::create()
-                  ->compare($table->column('state'), '<>', 'done')
-                  ->andL()->compare($table->column('group_id'), '=', $currentItem['parent_group_id']);
-                $queueParentResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter2} LIMIT 0,1");
-  
-                $waiting = ($queueParentResult->num_rows > 0);
-                sleep(10);
+              $filterCurrentItem = SqlFilter::create()
+                ->compare('id', '=', $currentItem['id']);
+              
+              self::$db->query("UPDATE {$table->getFullName()} SET state='" . self::STATE_PROCESS . "', date_start='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
+              
+              if ($queueResult->num_rows > 1) {
+                $moreTasks = TRUE;
+              } else {
+                $moreTasks = FALSE;
               }
-            }
-  
             
-            if (isset($currentItem['url']) && ($url = $currentItem['url'])) {
-              QueueManager::printMsg('OK', 'Call URL: ' . $url);
-              $response = $this->callUrl($url, ((isset($currentItem['data']) && ($data = (array)json_decode($currentItem['data'], TRUE))) ? $data : []));
-              $responseArr = json_decode($response, TRUE);
               
-              $responseResult = '';
-              if ($responseArr) {
-                if (isset($responseArr['errors']) && $responseArr['errors']) {
-                  $errorsString = json_encode($responseArr['errors'], JSON_UNESCAPED_UNICODE);
-                  throw new \Exception($errorsString);
-                } else {
-                  $responseResult = $responseArr;
+              if (!is_null($currentItem['parent_group_id'])) {
+                self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_WAIT . "', date_start='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
+                
+                $waiting = TRUE;
+                while ($waiting) {
+                  $filter2 = SqlFilter::create()
+                    ->compare($table->column('state'), '<>', 'done')
+                    ->andL()->compare($table->column('group_id'), '=', $currentItem['parent_group_id']);
+                  $queueParentResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter2} LIMIT 0,1");
+    
+                  $waiting = ($queueParentResult->num_rows > 0);
+                  sleep(10);
                 }
-              } elseif ($response) {
-                $responseResult = $response;
               }
-  
-              self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_DONE . "', message='" . self::$db->escape(((is_array($responseResult)) ? json_encode($responseResult, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) : (string)$responseResult)) . "', date_end='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
-              QueueManager::printMsg('OK', "URL `{$url}` done.");
+    
+              
+              if (isset($currentItem['url']) && ($url = $currentItem['url'])) {
+                QueueManager::printMsg('OK', 'Call URL: ' . $url);
+                $response = $this->callUrl($url, ((isset($currentItem['data']) && ($data = (array)json_decode($currentItem['data'], TRUE))) ? $data : []));
+                $responseArr = json_decode($response, TRUE);
+                
+                $responseResult = '';
+                if ($responseArr) {
+                  if (isset($responseArr['errors']) && $responseArr['errors']) {
+                    $errorsString = json_encode($responseArr['errors'], JSON_UNESCAPED_UNICODE);
+                    throw new \Exception($errorsString);
+                  } else {
+                    $responseResult = $responseArr;
+                  }
+                } elseif ($response) {
+                  $responseResult = $response;
+                }
+    
+                self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_DONE . "', message='" . self::$db->escape(((is_array($responseResult)) ? json_encode($responseResult, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) : (string)$responseResult)) . "', date_end='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
+                QueueManager::printMsg('OK', "URL `{$url}` done.");
+              }
             }
+          } catch (\Exception $e) {
+            QueueManager::printMsg('ERROR', $e->getMessage());
+            self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_ERROR . "', message='" . self::$db->escape($e->getMessage()) . "', date_end='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
           }
         } catch (\Exception $e) {
-          QueueManager::printMsg('ERROR', $e->getMessage());
-          self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_ERROR . "', message='" . self::$db->escape($e->getMessage()) . "', date_end='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
+          if ($e->getCode() !== 2006) {
+            throw new \Exception($e->getMessage(), $e->getCode(), $e);
+          }
         }
   
         if (!$moreTasks) {
