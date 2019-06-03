@@ -161,6 +161,10 @@
       return $this->adaptor->isConnected();
     }
   
+    public function reconnect() {
+      $this->adaptor->reconnect();
+    }
+  
     /**
      * @return bool
      * @throws \Exception

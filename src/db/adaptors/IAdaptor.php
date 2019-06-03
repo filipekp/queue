@@ -79,4 +79,14 @@
      * @return bool
      */
     public function inTransaction();
+  
+    /**
+     * @return mixed
+     */
+    public function connect();
+  
+    /**
+     * @return mixed
+     */
+    public function reconnect();
   }

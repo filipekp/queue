@@ -11,6 +11,12 @@
    */
   final class Mysqli implements IAdaptor
   {
+    private $hostname = NULL;
+    private $username = NULL;
+    private $password = NULL;
+    private $database = NULL;
+    private $port     = '3306';
+    
     private $connection;
     private $isMultiQuery  = FALSE;
     private $countAffected = 0;
@@ -18,16 +24,27 @@
     
     public         $tryQuery          = 10;
     private static $errors            = [1213, 1205];
-    
+  
+    /**
+     * Mysqli constructor.
+     *
+     * @param        $hostname
+     * @param        $username
+     * @param        $password
+     * @param        $database
+     * @param string $port
+     *
+     * @throws \Exception
+     */
     public function __construct($hostname, $username, $password, $database, $port = '3306') {
-      $this->connection = new \mysqli($hostname, $username, $password, $database, $port);
+      $this->hostname = $hostname;
+      $this->username = $username;
+      $this->password = $password;
+      $this->database = $database;
+      $this->port     = $port;
       
-      if ($this->connection->connect_error) {
-        throw new \Exception('Error: ' . $this->connection->error . '<br />Error No: ' . $this->connection->errno);
-      }
-      
-      $this->connection->set_charset("utf8");
-      $this->connection->query("SET SQL_MODE = ''");
+      $this->connection = new \mysqli();
+      $this->connect();
     }
     
     /**
@@ -195,6 +212,14 @@
     public function isConnected() {
       return $this->connection->ping();
     }
+  
+    /**
+     * @throws \Exception
+     */
+    public function reconnect() {
+      $this->closeConnection();
+      $this->connect();
+    }
     
     /**
      * @return bool
@@ -202,7 +227,24 @@
     public function inTransaction() {
       return $this->inTransaction;
     }
-    
+  
+    /**
+     * @throws \Exception
+     */
+    public function connect() {
+      $this->connection->connect($this->hostname, $this->username, $this->password, $this->database, $this->port);
+      
+      if ($this->connection->connect_error) {
+        throw new \Exception('Error: ' . $this->connection->error . '<br />Error No: ' . $this->connection->errno);
+      }
+  
+      $this->connection->set_charset("utf8");
+      $this->connection->query("SET SQL_MODE = ''");
+    }
+  
+    /**
+     * Close current connection.
+     */
     public function closeConnection() {
       $this->connection->close();
     }
