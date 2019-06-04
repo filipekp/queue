@@ -164,15 +164,12 @@
           } catch (\Exception $e) {
             QueueManager::printMsg('ERROR', $e->getMessage());
             self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_ERROR . "', message='" . self::$db->escape($e->getMessage()) . "', date_end='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
-            throw $e;
           }
         } catch (\Exception $e) {
           if ($e->getCode() == '2006') {
             if (!self::$db->connected()) {
               self::$db->reconnect();
             }
-          } else {
-            throw $e;
           }
         }
   
