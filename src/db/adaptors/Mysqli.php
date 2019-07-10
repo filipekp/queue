@@ -132,7 +132,7 @@
             usleep(100000);
             $r = $this->query($sql, $currentTry);
           } else {
-            throw new \Exception('Error: ' . $this->connection->error . '<br />Error No: ' . $this->connection->errno . '<br />' . $sql);
+            throw new \Exception('Error: ' . $this->connection->error . '<br />Error No: ' . $this->connection->errno . '<br />' . $sql, $this->connection->errno);
           }
         }
       } catch (\Exception $exp) {

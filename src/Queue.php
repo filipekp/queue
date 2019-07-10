@@ -168,7 +168,7 @@
             throw $e;
           }
         } catch (\Exception $e) {
-          if ($e->getCode() == '2006') {
+          if ($e->getCode() == 2006) {
             self::$db->reconnect();
           } else {
             throw $e;
