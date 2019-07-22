@@ -30,7 +30,7 @@
      * @param      $database
      * @param null $port
      *
-     * @throws \Exception
+     * @throws DatabaseException
      */
     public function __construct($adaptor, $hostname, $username, $password, $database, $port = NULL) {
       $adaptor = ucfirst($adaptor);
@@ -46,20 +46,20 @@
       if (class_exists($adaptorClass)) {
         $this->adaptor = new $adaptorClass($hostname, $username, $password, $database, $port);
       } else {
-        throw new \Exception('Error: Could not load database adaptor `' . $adaptor . '`!');
+        throw new DatabaseException('Error: Could not load database adaptor `' . $adaptor . '`!');
       }
     }
   
     /**
      * Nastartuje transakci
      *
-     * @throws \Exception
+     * @throws DatabaseException
      */
     public function beginTransaction() {
       if (method_exists($this->adaptor, 'beginTransaction')) {
         $this->adaptor->beginTransaction();
       } else {
-        throw new \Exception('Method beginTransaction() not implemented yet in adaptor ' . get_class($this->adaptor));
+        throw new DatabaseException('Method beginTransaction() not implemented yet in adaptor ' . get_class($this->adaptor));
       }
     }
   
@@ -67,26 +67,25 @@
      * Komitne transakci
      *
      * @return bool
-     * @throws \Exception
+     * @throws DatabaseException
      */
     public function commit() {
       if (method_exists($this->adaptor, 'commit')) {
         return $this->adaptor->commit();
       } else {
-        throw new \Exception('Method commit() not implemented yet in adaptor ' . get_class($this->adaptor));
+        throw new DatabaseException('Method commit() not implemented yet in adaptor ' . get_class($this->adaptor));
       }
     }
   
     /**
      * Rollback transakce.
-     *
-     * @throws \Exception
+     * @throws DatabaseException
      */
     public function rollback() {
       if (method_exists($this->adaptor, 'rollback')) {
         $this->adaptor->rollback();
       } else {
-        throw new \Exception('Method rollback() not implemented yet in adaptor ' . get_class($this->adaptor));
+        throw new DatabaseException('Method rollback() not implemented yet in adaptor ' . get_class($this->adaptor));
       }
     }
     
@@ -167,13 +166,13 @@
   
     /**
      * @return bool
-     * @throws \Exception
+     * @throws DatabaseException
      */
     public function inTransaction() {
       if (method_exists($this->adaptor, 'inTransaction')) {
         return $this->adaptor->inTransaction();
       } else {
-        throw new \Exception('Method inTransaction() not implemented yet in adaptor ' . get_class($this->adaptor));
+        throw new DatabaseException('Method inTransaction() not implemented yet in adaptor ' . get_class($this->adaptor));
       }
     }
   }

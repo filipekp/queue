@@ -2,6 +2,8 @@
   
   namespace filipekp\queue\db\adaptors;
 
+  use filipekp\queue\db\DatabaseException;
+
   /**
    * Třída MySQLi.
    *
@@ -108,7 +110,7 @@
           }
         }
       } else {
-        throw new \ErrorException($this->connection->error, $this->connection->errno);
+        throw new DatabaseException($this->connection->error, $this->connection->errno);
       }
     }
   
@@ -140,7 +142,7 @@
           $this->rollback();
         }
         
-        throw new \Exception($exp->getMessage(), $exp->getCode());
+        throw new DatabaseException($exp->getMessage(), $exp->getCode());
       }
       
       return $r;
@@ -235,7 +237,7 @@
       $this->connection->connect($this->hostname, $this->username, $this->password, $this->database, $this->port);
       
       if ($this->connection->connect_error) {
-        throw new \Exception('Error: ' . $this->connection->error . '<br />Error No: ' . $this->connection->errno);
+        throw new DatabaseException('Error: ' . $this->connection->error . '<br />Error No: ' . $this->connection->errno);
       }
   
       $this->connection->set_charset("utf8");
