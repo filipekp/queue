@@ -91,12 +91,15 @@
         $filterCurrentItem = SqlFilter::create();
 
         try {
+          $filterReserveItems = SqlFilter::create()->compare('state', '=', self::STATE_NEW)->andL()->isEmpty('processing_PID')->andL()->compare('queue_processor_id', '=', $this->processor);
           if (!$moreTasks) {
             // blokovani 2 uloh pro muj proces
             self::$db->beginTransaction();
-            $filterReserveItems = SqlFilter::create()->compare('state', '=', self::STATE_NEW)->andL()->isEmpty('processing_PID')->andL()->compare('queue_processor_id', '=', $this->processor);
             self::$db->query("UPDATE {$table->getFullName()}	SET	processing_PID = '" . $this->processPID . "' WHERE {$filterReserveItems} ORDER BY date_added ASC, id ASC LIMIT 2");
-            $affected = self::$db->countAffected();
+            self::$db->commit();
+          } else {
+            self::$db->beginTransaction();
+            self::$db->query("UPDATE {$table->getFullName()}	SET	processing_PID = '" . $this->processPID . "' WHERE {$filterReserveItems} ORDER BY date_added ASC, id ASC LIMIT 1");
             self::$db->commit();
           }
   
