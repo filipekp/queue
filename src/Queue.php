@@ -171,4 +171,16 @@
         }
       }
     }
+  
+    /**
+     * Nastavi timeout pro požadavek cURL.
+     *
+     * @param int $requestTimeout
+     * @return Queue
+     */
+    public function setRequestTimeout(int $requestTimeout): Queue {
+      $this->requestTimeout = $requestTimeout;
+      
+      return $this;
+    }
   }
