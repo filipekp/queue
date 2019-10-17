@@ -141,7 +141,7 @@
       
       $table = SqlTable::create('queue');
       $sql   = "INSERT INTO {$table} (id, group_id, parent_group_id, queue_processor_id, url, `data`, state, message, date_added, date_start, date_end) VALUES
-              (NULL, " . ((is_null($groupId)) ? 'NULL' : $groupId) . ", " . ((is_null($parentGroupId)) ? 'NULL' : $parentGroupId) . ", {$processor}, '{$url}', '" . json_encode($data|JSON_UNESCAPED_UNICODE) . "', 'new', NULL, NULL, NULL, NULL)";
+              (NULL, " . ((is_null($groupId)) ? 'NULL' : $groupId) . ", " . ((is_null($parentGroupId)) ? 'NULL' : $parentGroupId) . ", {$processor}, '{$url}', '" . json_encode($data, JSON_UNESCAPED_UNICODE) . "', 'new', NULL, NULL, NULL, NULL)";
   
       self::$db->query($sql);
       
