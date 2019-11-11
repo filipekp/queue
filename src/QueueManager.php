@@ -21,6 +21,7 @@
     protected static $db;
     
     protected $dbPrefix = '';
+    protected $intervalToDelete = '7 days';
     
     /** @var QueueManager */
     protected static $instance = NULL;
@@ -30,6 +31,7 @@
     protected static $queueChecker = NULL;
     
     protected static $isSetTimeZone = FALSE;
+    
     
     /**
      * QueueManager constructor.
@@ -120,7 +122,7 @@
     public function deleteOldQueueItems() {
       $table = SqlTable::create('queue');
       $filter = SqlFilter::create()
-        ->compare('date_added', '<', date('Y-m-d H:i:s', strtotime('-7 days')));
+        ->compare('date_added', '<', date('Y-m-d H:i:s', strtotime('-' . $this->intervalToDelete)));
       
       self::$db->query("DELETE FROM {$table} WHERE {$filter}");
     }
@@ -194,6 +196,7 @@
           `url` TEXT NOT NULL COLLATE 'utf8_czech_ci',
           `data` LONGTEXT NOT NULL COLLATE 'utf8_czech_ci',
           `state` ENUM('new','process','wait','error','done') NOT NULL DEFAULT 'new' COLLATE 'utf8_czech_ci',
+          `state_code` INT(6) NULL DEFAULT NULL,
           `processing_PID` VARCHAR(32) NULL DEFAULT NULL COLLATE 'utf8_czech_ci',
           `message` TEXT NULL DEFAULT NULL COLLATE 'utf8_czech_ci',
           `date_added` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -224,9 +227,18 @@
         AUTO_INCREMENT=1;
       ";
       
+      
+      
       $t2R = self::$db->query($createTable2);
       self::printMsg((($t2R) ? 'OK' : 'ERROR'), "Table `{$table2->getFullName()}` is" . (($t2R) ? '' : ' not') . " created.");
       $t1R = self::$db->query($createTable1);
       self::printMsg((($t1R) ? 'OK' : 'ERROR'), "Table `{$table1->getFullName()}` is" . (($t1R) ? '' : ' not') . " created.");
+    }
+  
+    /**
+     * @param string $intervalToDelete by datetime specifications
+     */
+    public function setIntervalToDelete(string $intervalToDelete = '7 days') {
+      $this->intervalToDelete = $intervalToDelete;
     }
   }

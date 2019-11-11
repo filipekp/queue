@@ -41,7 +41,7 @@
      * @param string $link
      * @param array  $paramsArray
      *
-     * @return bool|string
+     * @return array
      * @throws \Exception
      */
     protected function callUrl($link, $paramsArray = []) {
@@ -64,6 +64,7 @@
     
         //execute post
         $result = curl_exec($ch);
+        $headers = curl_getinfo($ch);
         
         if (curl_errno($ch)) {
           throw new \Exception(curl_error($ch));
@@ -72,7 +73,10 @@
       //close connection
       curl_close($ch);
       
-      return $result;
+      return [
+        'result' => $result,
+        'headers' => $headers,
+      ];
     }
   
     /**
@@ -136,23 +140,29 @@
     
             if (isset($currentItem['url']) && ($url = $currentItem['url'])) {
               QueueManager::printMsg('OK', 'Call URL: ' . $url);
-              $response    = $this->callUrl($url, ((isset($currentItem['data']) && ($data = (array)json_decode($currentItem['data'], TRUE))) ? $data : []));
-              $responseArr = json_decode($response, TRUE);
-      
+              $result      = $this->callUrl($url, ((isset($currentItem['data']) && ($data = (array)json_decode($currentItem['data'], TRUE))) ? $data : []));
+              $response    = $result['result'];
+              $headers     = $result['headers'];
+              $stateCode   = (int)$headers['http_code'];
+              $state       = self::STATE_DONE;
+              
               $responseResult = '';
-              if ($responseArr) {
+              if ($stateCode == 200 && ($responseArr = json_decode($response, TRUE))) {
                 if (isset($responseArr['errors']) && $responseArr['errors']) {
                   $errorsString = json_encode($responseArr['errors'], JSON_UNESCAPED_UNICODE);
                   throw new \Exception($errorsString);
                 } else {
                   $responseResult = $responseArr;
                 }
-              } elseif ($response) {
+              } elseif ($stateCode == 200 && $response) {
                 $responseResult = $response;
+              } else {
+                $responseResult = $response;
+                $state = self::STATE_ERROR;
               }
       
-              self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_DONE . "', message='" . self::$db->escape(((is_array($responseResult)) ? json_encode($responseResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$responseResult)) . "', date_end='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
-              QueueManager::printMsg('OK', "URL `{$url}` done.");
+              self::$db->query("UPDATE {$table->getFullName()}	SET state='" . $state . "', state_code='" . $stateCode . "', message='" . self::$db->escape(((is_array($responseResult)) ? json_encode($responseResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$responseResult)) . "', date_end='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
+              QueueManager::printMsg(strtoupper($state), "URL `{$url}` complete with stateCode: `{$stateCode}`.");
             }
           }
         } catch (DatabaseException $e) {
@@ -163,7 +173,7 @@
           }
         } catch (\Exception $e) {
           QueueManager::printMsg('ERROR', $e->getMessage());
-          self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_ERROR . "', message='" . self::$db->escape($e->getMessage()) . "', date_end='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
+          self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_ERROR . "', state_code='500', message='" . self::$db->escape($e->getMessage()) . "', date_end='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
         }
   
         if (!$moreTasks) {
