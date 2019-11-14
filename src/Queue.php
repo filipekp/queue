@@ -126,7 +126,7 @@
     
             if (!is_null($currentItem['parent_group_id'])) {
               self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_WAIT . "', date_start='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
-              $currItem = self::$db->query("SELECT * FROM {$table->getFullName()} WHERE {$filterCurrentItem}");
+              $currItem = self::$db->query("SELECT * FROM {$table->getFullName()} WHERE {$filterCurrentItem}")->row;
   
               $filter4 = SqlFilter::create()
                 ->inArray($table->column('state'), [self::STATE_NEW, self::STATE_PROCESS, self::STATE_WAIT])
