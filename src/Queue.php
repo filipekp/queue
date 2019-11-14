@@ -179,7 +179,7 @@
                 } else {
                   $responseResult = $responseArr;
                 }
-              } elseif ($stateCode == 200 && $response) {
+              } elseif ($stateCode == 200) {
                 $responseResult = $response;
               } else {
                 $responseResult = $response;
