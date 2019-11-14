@@ -126,14 +126,39 @@
     
             if (!is_null($currentItem['parent_group_id'])) {
               self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_WAIT . "', date_start='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
-      
+              $currItem = self::$db->query("SELECT * FROM {$table->getFullName()} WHERE {$filterCurrentItem}");
+  
+              $filter4 = SqlFilter::create()
+                ->inArray($table->column('state'), [self::STATE_NEW, self::STATE_PROCESS, self::STATE_WAIT])
+                ->andL()->compare($table->column('group_id'), '=', $currentItem['parent_group_id']);
+              $countChildrenResult = self::$db->query("SELECT COUNT(id) as `count` FROM {$table} WHERE {$filter4}");
+              $countChildren = $countChildrenResult->row['count'];
+              $maxTimeout = ($countChildren * $this->requestTimeout) + 240;
+              
               $waiting = TRUE;
               while ($waiting) {
-                $filter2           = SqlFilter::create()->compare($table->column('state'), '<>', 'done')->andL()->compare($table->column('group_id'), '=', $currentItem['parent_group_id']);
-                $queueParentResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter2} LIMIT 0,1");
-        
+                if ((new \DateTime($currItem['date_start'])) < (new \DateTime())->sub((new \DateInterval("PT{$maxTimeout}S")))) {
+                  throw new \Exception("Operation expired after {$maxTimeout} seconds while waiting for children.", 504);
+                }
+                
+                $filter2 = SqlFilter::create()
+                  ->inArray($table->column('state'), [self::STATE_NEW, self::STATE_PROCESS, self::STATE_WAIT])
+                  ->andL()->compare($table->column('processing_PID'), '<>', $this->processPID)
+                  ->andL()->compare($table->column('group_id'), '=', $currentItem['parent_group_id']);
+                $queueParentResult = self::$db->query("SELECT id FROM {$table} WHERE {$filter2} LIMIT 0,1");
                 $waiting = ($queueParentResult->num_rows > 0);
-                sleep(10);
+                
+                if ($waiting) {
+                  sleep(5);
+                } else {
+                  $filter3 = SqlFilter::create()
+                    ->inArray($table->column('state'), [self::STATE_ERROR])
+                    ->andL()->compare($table->column('group_id'), '=', $currentItem['parent_group_id']);
+                  $existsErrorChildResult = self::$db->query("SELECT id FROM {$table} WHERE {$filter3} LIMIT 0,1");
+                  if ($existsErrorChildResult->num_rows > 0) {
+                    throw new \Exception("Some children ended with error state.", 504);
+                  }
+                }
               }
             }
     
@@ -172,8 +197,9 @@
             self::$db->reconnect();
           }
         } catch (\Exception $e) {
-          QueueManager::printMsg('ERROR', $e->getMessage());
-          self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_ERROR . "', state_code='500', message='" . self::$db->escape($e->getMessage()) . "', date_end='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
+          $stateCode = (($e->getCode()) ? $e->getCode() : 500);
+          QueueManager::printMsg('ERROR', $e->getMessage() . ", stateCode: {$stateCode}");
+          self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_ERROR . "', state_code='" . $stateCode . "', message='" . self::$db->escape($e->getMessage()) . "', date_end='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
         }
   
         if (!$moreTasks) {
