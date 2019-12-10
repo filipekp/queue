@@ -216,7 +216,8 @@
     }
   
     /**
-     * @throws \Exception
+     * @return mixed|void
+     * @throws DatabaseException
      */
     public function reconnect() {
       $this->closeConnection();
@@ -231,13 +232,14 @@
     }
   
     /**
-     * @throws \Exception
+     * @return mixed|void
+     * @throws DatabaseException
      */
     public function connect() {
       $this->connection->connect($this->hostname, $this->username, $this->password, $this->database, $this->port);
       
       if ($this->connection->connect_error) {
-        throw new DatabaseException('Error: ' . $this->connection->error . '<br />Error No: ' . $this->connection->errno);
+        throw new DatabaseException($this->connection->connect_error, $this->connection->connect_errno);
       }
   
       $this->connection->set_charset("utf8");

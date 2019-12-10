@@ -191,10 +191,27 @@
             }
           }
         } catch (DatabaseException $e) {
-          QueueManager::printMsg("ERROR ({$e->getCode()})", $e->getMessage());
+          QueueManager::printMsg("ERROR: {$e->getCode()}", $e->getMessage());
           
           if ($e->getCode() == 2006) {
-            self::$db->reconnect();
+            $countTryReconnect = 5;
+            $countTryReconnectCounter = 1;
+            while ($countTryReconnect >= $countTryReconnectCounter) {
+              sleep(5);
+              try {
+                QueueManager::printMsg("INFO", "Try reconnect {$countTryReconnectCounter}/{$countTryReconnect}.");
+                self::$db->reconnect();
+                break;
+              } catch (DatabaseException $e) {
+                QueueManager::printMsg("ERROR: {$e->getCode()}", $e->getMessage());
+              }
+  
+              $countTryReconnectCounter++;
+            }
+            
+            if ($countTryReconnect > $countTryReconnectCounter) {
+              throw new \Exception("Server has gone away and reconnect failed.");
+            }
           }
         } catch (\Exception $e) {
           $stateCode = (($e->getCode()) ? $e->getCode() : 500);
