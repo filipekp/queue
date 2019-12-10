@@ -209,8 +209,8 @@
               $countTryReconnectCounter++;
             }
             
-            if ($countTryReconnect > $countTryReconnectCounter) {
-              throw new \Exception("Server has gone away and reconnect failed.");
+            if ($countTryReconnect < $countTryReconnectCounter) {
+              throw new \Exception("Server has gone away and reconnect failed after {$countTryReconnect} attempts.");
             }
           }
         } catch (\Exception $e) {
