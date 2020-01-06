@@ -250,8 +250,10 @@
   
     /**
      * Close current connection.
+     *
+     * @return bool
      */
     public function closeConnection() {
-      $this->connection->close();
+      return $this->connection->close();
     }
   }

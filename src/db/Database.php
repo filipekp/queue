@@ -161,10 +161,17 @@
     }
   
     /**
-     *
+     * @return bool
      */
     public function reconnect() {
       return $this->adaptor->reconnect();
+    }
+  
+    /**
+     * @return bool
+     */
+    public function closeConnection() {
+      return $this->adaptor->closeConnection();
     }
   
     /**

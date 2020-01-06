@@ -89,4 +89,6 @@
      * @return bool
      */
     public function reconnect();
+    
+    public function closeConnection();
   }

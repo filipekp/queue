@@ -95,6 +95,10 @@
         $filterCurrentItem = SqlFilter::create();
 
         try {
+          if (!self::$db->connected()) {
+            self::$db->reconnect();
+          }
+          
           $filterReserveItems = SqlFilter::create()->compare('state', '=', self::STATE_NEW)->andL()->isEmpty('processing_PID')->andL()->compare('queue_processor_id', '=', $this->processor);
           if (!$moreTasks) {
             // blokovani 2 uloh pro muj proces
@@ -222,6 +226,7 @@
         }
   
         if (!$moreTasks) {
+          self::$db->closeConnection();
           sleep(60);
         }
       }
