@@ -220,7 +220,7 @@
         }
   
         if (!$moreTasks) {
-          sleep(10);
+          sleep(60);
         }
       }
     }
