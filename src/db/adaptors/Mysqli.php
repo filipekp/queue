@@ -255,7 +255,7 @@
      */
     public function closeConnection() {
       $thread = $this->connection->thread_id;
-      $this->connection->close();
-      return $this->connection->kill($thread);
+      @$this->connection->close();
+      return @$this->connection->kill($thread);
     }
   }
