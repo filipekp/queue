@@ -200,7 +200,9 @@
               sleep(5);
               try {
                 QueueManager::printMsg("INFO", "Try reconnect {$countTryReconnectCounter}/{$countTryReconnect}.");
-                self::$db->reconnect();
+                if (self::$db->reconnect()) {
+                  QueueManager::printMsg("INFO", "Connected.");
+                }
                 break;
               } catch (DatabaseException $e) {
                 QueueManager::printMsg("ERROR: {$e->getCode()}", $e->getMessage());

@@ -221,7 +221,7 @@
      */
     public function reconnect() {
       $this->closeConnection();
-      $this->connect();
+      return $this->connect();
     }
     
     /**
@@ -244,6 +244,8 @@
   
       $this->connection->set_charset("utf8");
       $this->connection->query("SET SQL_MODE = ''");
+      
+      return TRUE;
     }
   
     /**

@@ -81,12 +81,12 @@
     public function inTransaction();
   
     /**
-     * @return mixed
+     * @return bool
      */
     public function connect();
   
     /**
-     * @return mixed
+     * @return bool
      */
     public function reconnect();
   }
