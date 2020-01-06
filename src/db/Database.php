@@ -163,6 +163,13 @@
     /**
      * @return bool
      */
+    public function connect() {
+      return $this->adaptor->connect();
+    }
+  
+    /**
+     * @return bool
+     */
     public function reconnect() {
       return $this->adaptor->reconnect();
     }

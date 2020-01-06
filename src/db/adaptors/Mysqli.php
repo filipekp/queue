@@ -212,7 +212,7 @@
      * @return bool
      */
     public function isConnected() {
-      return $this->connection->ping();
+      return @$this->connection->ping();
     }
   
     /**
@@ -254,6 +254,8 @@
      * @return bool
      */
     public function closeConnection() {
-      return $this->connection->close();
+      $thread = $this->connection->thread_id;
+      $this->connection->close();
+      return $this->connection->kill($thread);
     }
   }

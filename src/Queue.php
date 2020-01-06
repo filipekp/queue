@@ -96,7 +96,7 @@
 
         try {
           if (!self::$db->connected()) {
-            self::$db->reconnect();
+            self::$db->connect();
           }
           
           $filterReserveItems = SqlFilter::create()->compare('state', '=', self::STATE_NEW)->andL()->isEmpty('processing_PID')->andL()->compare('queue_processor_id', '=', $this->processor);
