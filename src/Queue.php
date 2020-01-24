@@ -211,11 +211,20 @@
     
             if (isset($currentItem['url']) && ($url = $currentItem['url'])) {
               QueueManager::printMsg('OK', 'Call URL: ' . $url);
-              $result      = $this->callUrl($url, ((isset($currentItem['data']) && ($data = (array)json_decode($currentItem['data'], TRUE))) ? $data : []));
+              $data = [];
+              if (isset($currentItem['data']) && ($dataFromJson = (array)json_decode($currentItem['data'], TRUE))) {
+                $data = $dataFromJson;
+              }
+              
+              if ($currentItem['process_type'] == self::TYPE_ASYNC) {
+                $data['web_hook_url'] = QueueManager::getWebhookHash($currentItem['id']);
+              }
+              
+              $result      = $this->callUrl($url, $data);
               $response    = $result['result'];
               $headers     = $result['headers'];
               $stateCode   = (int)$headers['http_code'];
-              $state       = self::STATE_DONE;
+              $state       = (($currentItem['process_type'] == self::TYPE_ASYNC) ? self::STATE_PROCESS_ASYNC : self::STATE_DONE);
               
               $responseResult = '';
               if ($stateCode == 200 && ($responseArr = json_decode($response, TRUE))) {
