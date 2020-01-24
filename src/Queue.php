@@ -218,8 +218,8 @@
                 $data = $dataFromJson;
               }
               
-              if ($currentItem['process_type'] == self::TYPE_ASYNC) {
-                $data[self::PARAM_WEB_HOOK_URL] = QueueManager::getWebhookHash($currentItem['id']);
+              if ($currentItem['process_type'] == self::TYPE_ASYNC && isset($data[self::PARAM_WEB_HOOK_URL])) {
+                $data[self::PARAM_WEB_HOOK_URL] = vsprintf($data[self::PARAM_WEB_HOOK_URL], [QueueManager::getWebhookHash($currentItem['id'])]);
               }
               
               $result      = $this->callUrl($url, $data);
