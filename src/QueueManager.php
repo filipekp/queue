@@ -3,9 +3,12 @@
   namespace filipekp\queue;
   
   use filipekp\queue\db\Database;
+  use PF\helpers\MyArray;
+  use PF\helpers\MyString;
   use PF\helpers\SqlFilter;
   use PF\helpers\SqlTable;
-  
+  use PF\helpers\Verifier;
+
   /**
    * Class QueueProcessor checks db, call workers and process all stuff
    *
@@ -130,24 +133,108 @@
     /**
      * Zapíše požadavek do fronty.
      *
-     * @param       $url
-     * @param array $data
-     * @param int   $processor
-     * @param null  $groupId
-     * @param null  $parentGroupId
+     * @param        $url
+     * @param null   $webhookUrl
+     * @param array  $data
+     * @param int    $processor
+     * @param null   $groupId
+     * @param null   $parentGroupId
+     * @param string $type     *
+     * @param int    $countTry
+     * @param int    $delay
      *
-     * @return int
+     * @return int last inserted ID
      */
-    public function writeRequest($url, $data = [], $processor = self::PROCESSOR_GENERAL, $groupId = NULL, $parentGroupId = NULL) {
+    public function writeRequest($url, $webhookUrl = NULL, $data = [], $processor = self::PROCESSOR_GENERAL, $groupId = NULL, $parentGroupId = NULL, $type = Queue::TYPE_SYNC, $countTry = 1, $delay = 0) {
       $url = urldecode(str_replace('&amp;', '&', $url));
       
+      if (!in_array($type, [Queue::TYPE_SYNC, Queue::TYPE_ASYNC])) {
+        throw new \InvalidArgumentException(vsprintf('Bad type: `%s` for queue.', [$type]), 500);
+      }
+      
       $table = SqlTable::create('queue');
-      $sql   = "INSERT INTO {$table} (id, group_id, parent_group_id, queue_processor_id, url, `data`, state, message, date_added, date_start, date_end) VALUES
-              (NULL, " . ((is_null($groupId)) ? 'NULL' : $groupId) . ", " . ((is_null($parentGroupId)) ? 'NULL' : $parentGroupId) . ", {$processor}, '" . self::$db->escape($url) . "', '" . self::$db->escape(json_encode($data, JSON_UNESCAPED_UNICODE)) . "', 'new', NULL, NULL, NULL, NULL)";
+      $sql   = "INSERT INTO {$table} (id, group_id, parent_group_id, queue_processor_id, `process_type`, webhook_url, url, `data`, state, retry, delay) VALUES
+              (NULL, " . ((is_null($groupId)) ? 'NULL' : $groupId) . ", " . ((is_null($parentGroupId)) ? 'NULL' : $parentGroupId) . ",
+              {$processor}, '{$type}', " . ((is_null($webhookUrl)) ? 'NULL' : "'" . self::$db->escape($webhookUrl) . "'") . ", '" . self::$db->escape($url) . "',
+              '" . self::$db->escape(json_encode($data, JSON_UNESCAPED_UNICODE)) . "', '" . Queue::STATE_NEW . "', {$countTry},
+              {$delay})";
   
       self::$db->query($sql);
       
+      return self::$db->getLastId();
+    }
+  
+    /**
+     * Update state from webHook async call.
+     *
+     * @param $hashIdentification
+     * @param $responseData
+     *
+     * @return int
+     * @throws \Exception
+     */
+    public function webHookAsyncResult($hashIdentification, $responseData) {
+      $decodedArray = json_decode(Verifier::decode($hashIdentification), TRUE);
+      $decodedArr = MyArray::init($decodedArray);
+      
+      if (!($queueId = $decodedArr->item('queue_id'))) {
+        throw new \InvalidArgumentException(vsprintf('Hashcode `%s` has bad form.', [$hashIdentification]));
+      }
+      
+      $dataArr = MyArray::init($responseData);
+      
+      $exceptionMsg = 'Response has not require attribute `%s`.';
+  
+      $http_code = NULL;
+      $result = NULL;
+      $datetime = NULL;
+      
+      foreach (['http_code', 'result', 'datetime'] as $param) {
+        if (is_null((${$param} = $dataArr->item($param)))) {
+          throw new \InvalidArgumentException(vsprintf($exceptionMsg, [$param]));
+        }
+      }
+      
+      $validDatetimeFormat = 'Y-m-d\TH:i:s.uP';
+      if ($datetime && !($dateTimeObj = \DateTime::createFromFormat($validDatetimeFormat, $datetime))) {
+        throw new \InvalidArgumentException(vsprintf('Attribute datetime: `%s` has not valid format. Valid format is `%s`.', [$datetime, $validDatetimeFormat]));
+      }
+      $datetime = $dateTimeObj;
+  
+  
+      $table = SqlTable::create('queue', 'q');
+  
+      if (is_null($datetime)) { $datetime = new \DateTime('now'); }
+  
+      switch ($http_code) {
+        case $http_code >= 500:
+          $state = Queue::STATE_ERROR;
+          break;
+        default:
+          $state = Queue::STATE_DONE;
+      }
+  
+      $filterCurrentItem = SqlFilter::create()->compare('id', '=', (string)$queueId);
+      self::$db->query("
+        UPDATE {$table->getFullName()}
+          SET state='" . $state . "', state_code='" . $http_code . "',
+          message='" . self::$db->escape(((is_array($result)) ? json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$result)) . "',
+          date_end='" . $datetime->format('Y-m-d H:i:s') . "'
+        WHERE {$filterCurrentItem};
+      ");
+      
       return self::$db->countAffected();
+    }
+  
+    /**
+     * @param $id
+     *
+     * @return string
+     */
+    public function getWebhookHash($id) {
+      return Verifier::encode(json_encode([
+        'queue_id' => $id
+      ]));
     }
   
     /**
@@ -193,12 +280,17 @@
           `group_id` INT(11) UNSIGNED NULL DEFAULT NULL,
           `parent_group_id` INT(11) UNSIGNED NULL DEFAULT NULL,
           `queue_processor_id` INT(11) NOT NULL,
+	        `process_type` ENUM('sync','async') NOT NULL DEFAULT 'sync' COLLATE 'utf8_czech_ci',
+	        `webhook_url` TEXT NULL COLLATE 'utf8_czech_ci',
           `url` TEXT NOT NULL COLLATE 'utf8_czech_ci',
           `data` LONGTEXT NOT NULL COLLATE 'utf8_czech_ci',
           `state` ENUM('new','process','wait','error','done') NOT NULL DEFAULT 'new' COLLATE 'utf8_czech_ci',
           `state_code` INT(6) NULL DEFAULT NULL,
           `processing_PID` VARCHAR(32) NULL DEFAULT NULL COLLATE 'utf8_czech_ci',
           `message` TEXT NULL DEFAULT NULL COLLATE 'utf8_czech_ci',
+          `delay` INT(11) NOT NULL DEFAULT '0',
+          `retry_counter` INT(11) NOT NULL DEFAULT '3',
+          `retry` INT(11) NOT NULL DEFAULT '3',
           `date_added` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
           `date_start` DATETIME NULL DEFAULT NULL,
           `date_end` DATETIME NULL DEFAULT NULL,
@@ -233,6 +325,17 @@
       self::printMsg((($t2R) ? 'OK' : 'ERROR'), "Table `{$table2->getFullName()}` is" . (($t2R) ? '' : ' not') . " created.");
       $t1R = self::$db->query($createTable1);
       self::printMsg((($t1R) ? 'OK' : 'ERROR'), "Table `{$table1->getFullName()}` is" . (($t1R) ? '' : ' not') . " created.");
+    }
+    
+    public function changeLogDB() {
+      // ver. 2.0
+      "ALTER TABLE `queue`
+          ADD COLUMN `process_type` ENUM('sync','async') NOT NULL DEFAULT 'sync' AFTER `queue_processor_id`,
+          ADD COLUMN `webhook_url` TEXT NULL AFTER `process_type`,
+          ADD COLUMN `delay` INT(11) NOT NULL DEFAULT '0' AFTER `message`,
+          ADD COLUMN `retry_counter` INT(11) NOT NULL DEFAULT '0' AFTER `delay`,
+          ADD COLUMN `retry` INT(11) NOT NULL DEFAULT '0' AFTER `retry_counter`,
+          CHANGE COLUMN `processing_PID` `processing_pid` VARCHAR(32) NULL DEFAULT NULL COLLATE 'utf8_czech_ci' AFTER `state_code`;";
     }
   
     /**

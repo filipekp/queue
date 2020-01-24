@@ -4,6 +4,7 @@
    * @copyright © 2019, Proclient s.r.o.
    * @created   03.04.2019
    */
+  require_once __DIR__ . '/framework.php';
   
   use filipekp\queue\QueueManager;
   
@@ -17,7 +18,7 @@
   try {
     QueueManager::printMsg('OK', 'Starting queue for processor ' . $queueProcessorId . '...');
     $queueManager = QueueManager::getInstance('localhost', 'root', 'root', 'database_name');
-    $queueManager->setDbPrefix('prefix_');
+    $queueManager->setDbPrefix('');
     
     $queueProcessor = $queueManager::getQueueInstance($queueProcessorId);
     QueueManager::printMsg('OK', 'Queue started.');
