@@ -3,6 +3,7 @@
   namespace filipekp\queue\db\adaptors;
 
   use filipekp\queue\db\DatabaseException;
+  use PF\helpers\MyArray;
 
   /**
    * Třída MySQLi.
@@ -23,6 +24,8 @@
     private $isMultiQuery  = FALSE;
     private $countAffected = 0;
     private $inTransaction = FALSE;
+  
+    private static $transactions = [];
     
     public         $tryQuery          = 10;
     private static $errors            = [1213, 1205];
@@ -48,12 +51,12 @@
       $this->connection = new \mysqli();
       $this->connect();
     }
-    
+  
     /**
      * @param $sql
      *
      * @return array|bool|\mysqli_result|\stdClass
-     * @throws \ErrorException
+     * @throws DatabaseException|\ErrorException
      */
     private function queryExec($sql) {
       $this->connection->multi_query($sql);
@@ -134,7 +137,7 @@
             usleep(100000);
             $r = $this->query($sql, $currentTry);
           } else {
-            throw new \Exception('Error: ' . $this->connection->error . '<br />Error No: ' . $this->connection->errno . '<br />' . $sql, $this->connection->errno);
+            throw new \Exception('⚠ Error: ' . $this->connection->error . ' => ' .  $sql, $this->connection->errno);
           }
         }
       } catch (\Exception $exp) {
@@ -147,42 +150,77 @@
       
       return $r;
     }
-    
-    public function beginTransaction() {
-      if (!$this->inTransaction) {
-        $this->connection->autocommit($this->inTransaction);
-        $this->connection->begin_transaction();
-        
-        $this->inTransaction = TRUE;
-      }
-    }
   
     /**
+     * @param null $name
+     *
      * @return bool
      */
-    public function commit() {
-      $return = FALSE;
-      
-      if ($this->inTransaction) {
-        $return = $this->connection->commit();
-        $this->connection->autocommit($this->inTransaction);
-        
-        $this->inTransaction = FALSE;
+    public function beginTransaction($name = NULL) {
+      $name = $this->getNameOfTransaction($name);
+  
+      if ($this->inTransaction($name)) {
+        throw new \LogicException(
+          '⚠ Couldn\'t call ' . __FUNCTION__ . '(). Instance of ' . __CLASS__ . ' in transaction `' . $name . '`.',
+          10100
+        );
       }
-      
+  
+      if (count(self::$transactions) == 0) {
+        $return = $this->connection->begin_transaction(0, $name);
+      } else {
+        $return = $this->connection->savepoint($name);
+      }
+  
+      $this->setInTransaction($name, TRUE);
+  
       return $return;
     }
   
     /**
-     * @return bool|void
+     * @param null $name
+     *
+     * @return bool
      */
-    public function rollback() {
-      if ($this->inTransaction) {
-        $this->connection->rollback();
-        $this->connection->autocommit($this->inTransaction);
-        
-        $this->inTransaction = FALSE;
+    public function commit($name = NULL) {
+      $name = $this->getNameOfTransaction($name);
+  
+      if (!$this->inTransaction($name)) {
+        throw new \LogicException(
+          '⚠ Couldn\'t call ' . __FUNCTION__ . '(). Instance of ' . __CLASS__ . ' isn\'t in transaction `' . $name . '`.',
+          10110
+        );
       }
+  
+      $this->setInTransaction($name, FALSE);
+      if (count(self::$transactions) == 0) {
+        $return = $this->connection->commit();
+      } else {
+        $return = TRUE;
+      }
+  
+      return $return;
+    }
+  
+    /**
+     * @param null $name
+     *
+     * @return bool
+     */
+    public function rollback($name = NULL) {
+      $name = $this->getNameOfTransaction($name);
+  
+      if (!$this->inTransaction($name)) {
+        throw new \LogicException(
+          '⚠ Couldn\'t call ' . __FUNCTION__ . '(). Instance of ' . __CLASS__ . ' isn\'t in transaction `' . $name . '`.',
+          10101
+        );
+      }
+  
+      $return = $this->connection->rollback(0, $name);
+      $this->setInTransaction($name, FALSE);
+  
+      return $return;
     }
   
     /**
@@ -224,11 +262,40 @@
       return $this->connect();
     }
     
+    private function getNameOfTransaction($name = NULL) {
+      return ((is_null($name)) ? 'NA___NULL' : $name);
+    }
+  
     /**
+     * @param null $name
+     * @param bool $state
+     *
+     * @return string|null
+     */
+    private function setInTransaction($name = NULL, $state = TRUE) {
+      $name = $this->getNameOfTransaction($name);
+    
+      if ($state) {
+        self::$transactions[$name] = TRUE;
+      } else {
+        $transactionsArr = MyArray::init(self::$transactions);
+        $transactionsArr->unsetItem([$name]);
+      }
+    
+      $this->connection->autocommit(count(self::$transactions) < 1);
+    
+      return $name;
+    }
+  
+    /**
+     * @param null $name
+     *
      * @return bool
      */
-    public function inTransaction() {
-      return $this->inTransaction;
+    public function inTransaction($name = NULL) {
+      $name = $this->getNameOfTransaction($name);
+    
+      return (bool)MyArray::init(self::$transactions)->item([$name], FALSE);
     }
   
     /**

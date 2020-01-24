@@ -34,20 +34,29 @@
   
     /**
      * Begin transaction.
+     *
+     * @param null $name
+     *
+     * @return bool
      */
-    public function beginTransaction();
+    public function beginTransaction($name = NULL);
   
     /**
      * Commit transaction.
+     * @param null $name
+     *
      * @return bool
      */
-    public function commit();
+    public function commit($name = NULL);
   
     /**
      * Rollback transaction.
+     *
+     * @param null $name
+     *
      * @return bool
      */
-    public function rollback();
+    public function rollback($name = NULL);
   
     /**
      * Escape string.
@@ -76,9 +85,11 @@
     public function isConnected();
   
     /**
+     * @param null $name
+     *
      * @return bool
      */
-    public function inTransaction();
+    public function inTransaction($name = NULL);
   
     /**
      * @return bool

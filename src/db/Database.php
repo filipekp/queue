@@ -53,11 +53,14 @@
     /**
      * Nastartuje transakci
      *
+     * @param null $name
+     *
+     * @return bool
      * @throws DatabaseException
      */
-    public function beginTransaction() {
+    public function beginTransaction($name = NULL) {
       if (method_exists($this->adaptor, 'beginTransaction')) {
-        $this->adaptor->beginTransaction();
+        return $this->adaptor->beginTransaction($name);
       } else {
         throw new DatabaseException('Method beginTransaction() not implemented yet in adaptor ' . get_class($this->adaptor));
       }
@@ -66,12 +69,14 @@
     /**
      * Komitne transakci
      *
+     * @param null $name
+     *
      * @return bool
      * @throws DatabaseException
      */
-    public function commit() {
+    public function commit($name = NULL) {
       if (method_exists($this->adaptor, 'commit')) {
-        return $this->adaptor->commit();
+        return $this->adaptor->commit($name);
       } else {
         throw new DatabaseException('Method commit() not implemented yet in adaptor ' . get_class($this->adaptor));
       }
@@ -79,11 +84,15 @@
   
     /**
      * Rollback transakce.
+     *
+     * @param null $name
+     *
+     * @return bool
      * @throws DatabaseException
      */
-    public function rollback() {
+    public function rollback($name = NULL) {
       if (method_exists($this->adaptor, 'rollback')) {
-        $this->adaptor->rollback();
+        return $this->adaptor->rollback($name);
       } else {
         throw new DatabaseException('Method rollback() not implemented yet in adaptor ' . get_class($this->adaptor));
       }
@@ -182,12 +191,14 @@
     }
   
     /**
+     * @param null $name
+     *
      * @return bool
      * @throws DatabaseException
      */
-    public function inTransaction() {
+    public function inTransaction($name = NULL) {
       if (method_exists($this->adaptor, 'inTransaction')) {
-        return $this->adaptor->inTransaction();
+        return $this->adaptor->inTransaction($name);
       } else {
         throw new DatabaseException('Method inTransaction() not implemented yet in adaptor ' . get_class($this->adaptor));
       }
