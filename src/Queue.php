@@ -32,6 +32,8 @@
   
     const TYPE_SYNC  = 'sync';
     const TYPE_ASYNC = 'async';
+    
+    const PARAM_WEB_HOOK_URL = 'web_hook_url';
   
     private static $VERSION = '___VERSION_N/A___';
     
@@ -217,7 +219,7 @@
               }
               
               if ($currentItem['process_type'] == self::TYPE_ASYNC) {
-                $data['web_hook_url'] = QueueManager::getWebhookHash($currentItem['id']);
+                $data[self::PARAM_WEB_HOOK_URL] = QueueManager::getWebhookHash($currentItem['id']);
               }
               
               $result      = $this->callUrl($url, $data);
