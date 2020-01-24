@@ -247,7 +247,7 @@
                 SET state='" . $state . "',
                 state_code='" . $stateCode . "',
                 message='" . self::$db->escape(((is_array($responseResult)) ? json_encode($responseResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$responseResult)) . "'" .
-                (($currentItem['process_type'] == self::TYPE_SYNC) ? ", date_end='" . date('Y-m-d H:i:s') . "'" : '') .
+                (($currentItem['process_type'] == self::TYPE_SYNC || $state == self::STATE_ERROR) ? ", date_end='" . date('Y-m-d H:i:s') . "'" : '') .
                 "WHERE {$filterCurrentItem}");
               
 //              // zaslani vysledku na webhook URL
