@@ -214,7 +214,9 @@
           $state = Queue::STATE_DONE;
       }
   
-      $filterCurrentItem = SqlFilter::create()->compare('id', '=', (string)$queueId);
+      $filterCurrentItem = SqlFilter::create()
+        ->compare('id', '=', (string)$queueId)
+        ->andL()->compare('process_type', '=', Queue::TYPE_ASYNC);
       self::$db->query("
         UPDATE {$table->getFullName()}
           SET state='" . $state . "', state_code='" . $http_code . "',
