@@ -234,9 +234,9 @@
      * @return string
      */
     public static function getWebhookHash($id) {
-      return Verifier::encode(json_encode([
+      return urlencode(Verifier::encode(json_encode([
         'queue_id' => $id
-      ]));
+      ])));
     }
   
     /**
