@@ -331,7 +331,7 @@
       $table3 = SqlTable::create('queue_request');
       $createTable3 = "
         CREATE TABLE `{$table3->getFullName()}` (
-          `id` BIGINT(20) NOT NULL,
+          `id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
           `queue_id` INT(10) UNSIGNED NOT NULL,
           `endpoint` VARCHAR(512) NOT NULL COLLATE 'utf8_czech_ci',
           `datetime` TIMESTAMP NOT NULL DEFAULT current_timestamp(),
@@ -347,7 +347,7 @@
       $table4 = SqlTable::create('queue_response');
       $createTable4 = "
         CREATE TABLE `{$table4->getFullName()}` (
-          `id` BIGINT(20) NOT NULL,
+          `id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
           `queue_id` INT(10) UNSIGNED NOT NULL,
           `code` INT(11) NOT NULL,
           `response_data` LONGTEXT NOT NULL DEFAULT '' COLLATE 'utf8_czech_ci',
