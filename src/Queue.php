@@ -249,6 +249,12 @@
                 message='" . self::$db->escape(((is_array($responseResult)) ? json_encode($responseResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$responseResult)) . "'" .
                 (($currentItem['process_type'] == self::TYPE_SYNC || $state == self::STATE_ERROR) ? ", date_end='" . date('Y-m-d H:i:s') . "'" : '') .
                 "WHERE {$filterCurrentItem}");
+  
+              self::$db->query("
+                INSERT INTO queue_response
+                  (queue_id, code, response_data, datetime)
+                VALUES ({$currentItem['id']}, {$stateCode}, '" . self::$db->escape(((is_array($responseResult)) ? json_encode($responseResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$responseResult)) . "');
+              ");
               
 //              // zaslani vysledku na webhook URL
 //              if (!is_null($currentItem['webhook_url']) && $currentItem['webhook_url']) {

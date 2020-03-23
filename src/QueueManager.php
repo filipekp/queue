@@ -205,6 +205,7 @@
       $table = SqlTable::create('queue', 'q');
   
       if (is_null($datetime)) { $datetime = new \DateTime('now'); }
+      $datetime->setTimezone((new \DateTimeZone('Europe/Prague')));
   
       switch ($http_code) {
         case $http_code >= 500:
@@ -215,14 +216,19 @@
       }
   
       $filterCurrentItem = SqlFilter::create()
-        ->compare('id', '=', (string)$queueId)
-        ->andL()->compare('process_type', '=', Queue::TYPE_ASYNC);
+        ->compare('id', '=', (string)$queueId);
       self::$db->query("
         UPDATE {$table->getFullName()}
           SET state='" . $state . "', state_code='" . $http_code . "',
           message='" . self::$db->escape(((is_array($result)) ? json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$result)) . "',
           date_end='" . $datetime->format('Y-m-d H:i:s') . "'
         WHERE {$filterCurrentItem};
+      ");
+      
+      self::$db->query("
+        INSERT INTO queue_response
+          (queue_id, code, response_data, datetime)
+        VALUES ({$queueId}, {$http_code}, '" . self::$db->escape(((is_array($result)) ? json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$result)) . "');
       ");
       
       return self::$db->countAffected();
@@ -321,12 +327,50 @@
         AUTO_INCREMENT=1;
       ";
       
+      // request table
+      $table3 = SqlTable::create('queue_request');
+      $createTable3 = "
+        CREATE TABLE `{$table3->getFullName()}` (
+          `id` BIGINT(20) NOT NULL,
+          `queue_id` INT(10) UNSIGNED NOT NULL,
+          `endpoint` VARCHAR(512) NOT NULL COLLATE 'utf8_czech_ci',
+          `datetime` TIMESTAMP NOT NULL DEFAULT current_timestamp(),
+          PRIMARY KEY (`id`),
+          INDEX `FK_{$table3->getFullName()}2{$table1->getFullName()}` (`queue_id`),
+          CONSTRAINT `FK_{$table3->getFullName()}2{$table1->getFullName()}` FOREIGN KEY (`queue_id`) REFERENCES `{$table1->getFullName()}` (`id`) ON UPDATE CASCADE ON DELETE CASCADE
+        )
+        COLLATE='utf8_czech_ci'
+        ENGINE=InnoDB;
+      ";
+      
+      // response table
+      $table4 = SqlTable::create('queue_response');
+      $createTable4 = "
+        CREATE TABLE `{$table4->getFullName()}` (
+          `id` BIGINT(20) NOT NULL,
+          `queue_id` INT(10) UNSIGNED NOT NULL,
+          `code` INT(11) NOT NULL,
+          `response_data` LONGTEXT NOT NULL DEFAULT '' COLLATE 'utf8_czech_ci',
+          `datetime` TIMESTAMP NOT NULL DEFAULT current_timestamp(),
+          PRIMARY KEY (`id`),
+          INDEX `FK_{$table4->getFullName()}{$table1->getFullName()}` (`queue_id`),
+          CONSTRAINT `fk_{$table4->getFullName()}2{$table1->getFullName()}` FOREIGN KEY (`queue_id`) REFERENCES `{$table1->getFullName()}` (`id`) ON UPDATE CASCADE ON DELETE CASCADE
+        )
+        COLLATE='utf8_czech_ci'
+        ENGINE=InnoDB
+        ROW_FORMAT=DYNAMIC;
+      ";
+      
       
       
       $t2R = self::$db->query($createTable2);
       self::printMsg((($t2R) ? 'OK' : 'ERROR'), "Table `{$table2->getFullName()}` is" . (($t2R) ? '' : ' not') . " created.");
       $t1R = self::$db->query($createTable1);
       self::printMsg((($t1R) ? 'OK' : 'ERROR'), "Table `{$table1->getFullName()}` is" . (($t1R) ? '' : ' not') . " created.");
+      $t2R = self::$db->query($createTable3);
+      self::printMsg((($t2R) ? 'OK' : 'ERROR'), "Table `{$table3->getFullName()}` is" . (($t2R) ? '' : ' not') . " created.");
+      $t2R = self::$db->query($createTable2);
+      self::printMsg((($t2R) ? 'OK' : 'ERROR'), "Table `{$table4->getFullName()}` is" . (($t2R) ? '' : ' not') . " created.");
     }
     
     public function changeLogDB() {
