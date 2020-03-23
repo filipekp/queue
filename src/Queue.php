@@ -252,7 +252,7 @@
   
               self::$db->query("
                 INSERT INTO queue_response
-                  (queue_id, code, response_data, datetime)
+                  (queue_id, code, response_data)
                 VALUES ({$currentItem['id']}, {$stateCode}, '" . self::$db->escape(((is_array($responseResult)) ? json_encode($responseResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$responseResult)) . "');
               ");
               

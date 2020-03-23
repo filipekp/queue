@@ -227,7 +227,7 @@
       
       self::$db->query("
         INSERT INTO queue_response
-          (queue_id, code, response_data, datetime)
+          (queue_id, code, response_data)
         VALUES ({$queueId}, {$http_code}, '" . self::$db->escape(((is_array($result)) ? json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$result)) . "');
       ");
       
