@@ -304,6 +304,11 @@
             date_end='" . date('Y-m-d H:i:s') . "'
             WHERE {$filterCurrentItem}");
   
+          self::$db->query("
+            INSERT INTO queue_response
+              (queue_id, code, response_data)
+            VALUES ({$currentItem['id']}, {$stateCode}, '" . self::$db->escape($e->getMessage()) . "');
+          ");
         }
         
         // zaslani vysledku na webhook URL
