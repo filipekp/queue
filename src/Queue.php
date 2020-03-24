@@ -107,7 +107,7 @@
       
       $table = SqlTable::create('queue', 'q');
       while (TRUE) {
-        $filterCurrentItem = SqlFilter::create()->identity();
+        $filterCurrentItem = NULL;
         $currentItem = NULL;
         
         try {
@@ -297,18 +297,21 @@
         } catch (\Exception $e) {
           $stateCode = (($e->getCode()) ? $e->getCode() : 500);
           QueueManager::printMsg('ERROR', $e->getMessage() . ", stateCode: {$stateCode}");
-          self::$db->query("UPDATE {$table->getFullName()}
-            SET state='" . self::STATE_ERROR . "',
-            state_code='" . $stateCode . "',
-            message='" . self::$db->escape($e->getMessage()) . "',
-            date_end='" . date('Y-m-d H:i:s') . "'
-            WHERE {$filterCurrentItem}");
-  
-          self::$db->query("
-            INSERT INTO queue_response
-              (queue_id, code, response_data)
-            VALUES ({$currentItem['id']}, {$stateCode}, '" . self::$db->escape($e->getMessage()) . "');
-          ");
+          
+          if (!is_null($filterCurrentItem)) {
+            self::$db->query("UPDATE {$table->getFullName()}
+              SET state='" . self::STATE_ERROR . "',
+              state_code='" . $stateCode . "',
+              message='" . self::$db->escape($e->getMessage()) . "',
+              date_end='" . date('Y-m-d H:i:s') . "'
+              WHERE {$filterCurrentItem}");
+    
+            self::$db->query("
+              INSERT INTO queue_response
+                (queue_id, code, response_data)
+              VALUES ({$currentItem['id']}, {$stateCode}, '" . self::$db->escape($e->getMessage()) . "');
+            ");
+          }
         }
         
         // zaslani vysledku na webhook URL
