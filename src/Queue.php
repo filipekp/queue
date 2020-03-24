@@ -221,6 +221,8 @@
               if ($currentItem['process_type'] == self::TYPE_ASYNC && isset($data[self::PARAM_WEB_HOOK_URL])) {
                 $data[self::PARAM_WEB_HOOK_URL] = vsprintf($data[self::PARAM_WEB_HOOK_URL], [QueueManager::getWebhookHash($currentItem['id'])]);
               }
+  
+              self::$db->query("INSERT INTO queue_request (queue_id, endpoint) VALUES ({$currentItem['id']}, '{$url}');");
               
               $result      = $this->callUrl($url, $data);
               $response    = $result['result'];
