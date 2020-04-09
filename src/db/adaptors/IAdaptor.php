@@ -2,6 +2,8 @@
   
   namespace filipekp\queue\db\adaptors;
   
+  use filipekp\queue\db\DatabaseException;
+
   /**
    * Rozhraní IAdaptor.
    *
@@ -93,13 +95,19 @@
   
     /**
      * @return bool
+     * @throws DatabaseException
      */
     public function connect();
   
     /**
      * @return bool
+     * @throws DatabaseException
      */
     public function reconnect();
-    
+  
+    /**
+     * @return bool
+     * @throws DatabaseException
+     */
     public function closeConnection();
   }

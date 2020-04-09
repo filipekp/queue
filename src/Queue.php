@@ -298,7 +298,7 @@
           $stateCode = (($e->getCode()) ? $e->getCode() : 500);
           QueueManager::printMsg('ERROR', $e->getMessage() . ", stateCode: {$stateCode}");
           
-          if (!is_null($filterCurrentItem)) {
+          if (!is_null($filterCurrentItem) && isset($currentItem['id'])) {
             self::$db->query("UPDATE {$table->getFullName()}
               SET state='" . self::STATE_ERROR . "',
               state_code='" . $stateCode . "',
