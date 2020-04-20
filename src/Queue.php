@@ -143,13 +143,9 @@
             $filterReserveItems = SqlFilter::create()->compare('state', '=', self::STATE_NEW)->andL()->isEmpty('processing_pid')->andL()->compare('queue_processor_id', '=', $this->processor);
             if (!$moreTasks) {
               // blokovani 2 uloh pro muj proces
-              self::$db->beginTransaction();
               self::$db->query("UPDATE {$table->getFullName()}	SET	processing_pid = '" . $this->processPID . "' WHERE {$filterReserveItems} ORDER BY date_added ASC, id ASC LIMIT 2");
-              self::$db->commit();
             } else {
-              self::$db->beginTransaction();
               self::$db->query("UPDATE {$table->getFullName()}	SET	processing_pid = '" . $this->processPID . "' WHERE {$filterReserveItems} ORDER BY date_added ASC, id ASC LIMIT 1");
-              self::$db->commit();
             }
           
             $filter      = SqlFilter::create()->compare($table->column('state'), '=', self::STATE_NEW)->andL()->compare($table->column('queue_processor_id'), '=', $this->processor)->andL()->compare($table->column('processing_pid'), '=', $this->processPID);
@@ -312,6 +308,8 @@
               VALUES ({$currentItem['id']}, {$stateCode}, '" . self::$db->escape($e->getMessage()) . "');
             ");
           }
+          
+//          throw $e;
         }
         
         // zaslani vysledku na webhook URL
