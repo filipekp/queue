@@ -313,8 +313,7 @@
             ");
           }
           
-          
-//          throw $e;
+          throw $e;
         }
         
         // zaslani vysledku na webhook URL
