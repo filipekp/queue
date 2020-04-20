@@ -82,7 +82,7 @@
         $headers = curl_getinfo($ch);
         
         if (curl_errno($ch)) {
-          throw new \Exception(curl_error($ch));
+          throw new \Exception(curl_error($ch), curl_errno($ch));
         }
     
       //close connection
@@ -208,7 +208,7 @@
     
     
             if (isset($currentItem['url']) && ($url = $currentItem['url'])) {
-              QueueManager::printMsg('OK', 'Call URL: ' . $url);
+              QueueManager::printMsg('INFO', 'Call URL: ' . $url);
               $data = [];
               if (isset($currentItem['data']) && ($dataFromJson = (array)json_decode($currentItem['data'], TRUE))) {
                 $data = $dataFromJson;
@@ -230,7 +230,7 @@
               if (($stateCode >= 200 || $stateCode < 300) && ($responseArr = json_decode($response, TRUE))) {
                 if (isset($responseArr['errors']) && $responseArr['errors']) {
                   $errorsString = json_encode($responseArr['errors'], JSON_UNESCAPED_UNICODE);
-                  throw new \Exception($errorsString);
+                  throw new \Exception($errorsString, $stateCode);
                 } else {
                   $responseResult = $responseArr;
                 }
@@ -266,7 +266,7 @@
             }
           }
         } catch (DatabaseException $e) {
-          QueueManager::printMsg("ERROR: {$e->getCode()}", $e->getMessage());
+          QueueManager::printMsg("ERROR ({$e->getCode()})", $e->getMessage());
           
           if ($e->getCode() == 2006) {
             $countTryReconnect = 5;
@@ -280,7 +280,7 @@
                 }
                 break;
               } catch (DatabaseException $e) {
-                QueueManager::printMsg("ERROR: {$e->getCode()}", $e->getMessage());
+                QueueManager::printMsg("ERROR ({$e->getCode()})", $e->getMessage());
               }
   
               $countTryReconnectCounter++;
@@ -292,7 +292,7 @@
           }
         } catch (\Exception $e) {
           $stateCode = (($e->getCode()) ? $e->getCode() : 500);
-          QueueManager::printMsg('ERROR', $e->getMessage() . ", stateCode: {$stateCode}");
+          QueueManager::printMsg("ERROR ({$stateCode})", $e->getMessage() . "");
           
           if (self::$db->inTransaction()) {
             self::$db->rollback();
@@ -313,7 +313,9 @@
             ");
           }
           
-          throw $e;
+          if (!in_array($e->getCode(), [CURLE_OPERATION_TIMEDOUT])) {
+            throw $e;
+          }
         }
         
         // zaslani vysledku na webhook URL
