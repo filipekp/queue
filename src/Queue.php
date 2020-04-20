@@ -294,6 +294,10 @@
           $stateCode = (($e->getCode()) ? $e->getCode() : 500);
           QueueManager::printMsg('ERROR', $e->getMessage() . ", stateCode: {$stateCode}");
           
+          if (self::$db->inTransaction()) {
+            self::$db->rollback();
+          }
+          
           if (!is_null($filterCurrentItem) && isset($currentItem['id'])) {
             self::$db->query("UPDATE {$table->getFullName()}
               SET state='" . self::STATE_ERROR . "',
@@ -308,6 +312,7 @@
               VALUES ({$currentItem['id']}, {$stateCode}, '" . self::$db->escape($e->getMessage()) . "');
             ");
           }
+          
           
 //          throw $e;
         }
