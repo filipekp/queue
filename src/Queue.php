@@ -81,8 +81,8 @@
         $result = curl_exec($ch);
         $headers = curl_getinfo($ch);
         
-        if (curl_errno($ch)) {
-          throw new \Exception(curl_error($ch), curl_errno($ch));
+        if (($errNo = curl_errno($ch))) {
+          throw new \Exception(curl_error($ch), $errNo);
         }
     
       //close connection
