@@ -227,14 +227,14 @@
               $state       = (($currentItem['process_type'] == self::TYPE_ASYNC) ? self::STATE_PROCESS_ASYNC : self::STATE_DONE);
               
               $responseResult = '';
-              if (($stateCode >= 200 || $stateCode < 300) && ($responseArr = json_decode($response, TRUE))) {
+              if (($stateCode >= 200 && $stateCode < 300) && ($responseArr = json_decode($response, TRUE))) {
                 if (isset($responseArr['errors']) && $responseArr['errors']) {
                   $errorsString = json_encode($responseArr['errors'], JSON_UNESCAPED_UNICODE);
                   throw new \Exception($errorsString, $stateCode);
                 } else {
                   $responseResult = $responseArr;
                 }
-              } elseif (($stateCode >= 200 || $stateCode < 300)) {
+              } elseif (($stateCode >= 200 && $stateCode < 300)) {
                 $responseResult = $response;
               } else {
                 $responseResult = $response;
