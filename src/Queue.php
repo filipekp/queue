@@ -292,7 +292,7 @@
           }
         } catch (\Exception $e) {
           $stateCode = (($e->getCode()) ? $e->getCode() : 500);
-          QueueManager::printMsg("ERROR ({$stateCode})", $e->getMessage() . "");
+          QueueManager::printMsg("ERROR ({$e->getCode()})", $e->getMessage() . "");
           
           if (self::$db->inTransaction()) {
             self::$db->rollback();
