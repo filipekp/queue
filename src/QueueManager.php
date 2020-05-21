@@ -125,7 +125,12 @@
     public function deleteOldQueueItems() {
       $table = SqlTable::create('queue');
       $filter = SqlFilter::create()
-        ->compare('date_added', '<', date('Y-m-d H:i:s', strtotime('-' . $this->intervalToDelete)));
+        ->isNotEmpty('date_start')
+        ->andL()->compare('date_added', '<', date('Y-m-d H:i:s', strtotime('-' . $this->intervalToDelete)))
+        ->andL(
+          SqlFilter::create()->compare('state', '=', Queue::STATE_DONE)
+          ->orL()->compareColumns('retry_counter', '>=', 'retry')
+        );
       
       self::$db->query("DELETE FROM {$table} WHERE {$filter}");
     }
