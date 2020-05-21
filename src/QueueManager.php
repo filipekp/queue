@@ -126,7 +126,7 @@
       $table = SqlTable::create('queue');
       $filter = SqlFilter::create()
         ->isNotEmpty('date_start')
-        ->andL()->compare('date_added', '<', date('Y-m-d H:i:s', strtotime('-' . $this->intervalToDelete)))
+        ->andL()->compare('date_start', '<', date('Y-m-d H:i:s', strtotime('-' . $this->intervalToDelete)))
         ->andL(
           SqlFilter::create()->compare('state', '=', Queue::STATE_DONE)
           ->orL()->compareColumns('retry_counter', '>=', 'retry')
