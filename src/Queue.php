@@ -139,7 +139,7 @@
           $numRows = $queueResultErr->num_rows;
           $currentItem = $queueResultErr->row;
   
-          if (!$numRows) {
+          if ($numRows == 0) {
             $filterReserveItems = SqlFilter::create()->compare('state', '=', self::STATE_NEW)->andL()->isEmpty('processing_pid')->andL()->compare('queue_processor_id', '=', $this->processor);
             if (!$moreTasks) {
               // blokovani 2 uloh pro muj proces
@@ -159,12 +159,7 @@
     
             self::$db->query("UPDATE {$table->getFullName()} SET state='" . self::STATE_PROCESS . "', date_start='" . date('Y-m-d H:i:s') . "', date_end = NULL, retry_counter=(retry_counter + 1), delay = (CASE WHEN delay = 0 THEN 30 ELSE delay * 2 END) WHERE {$filterCurrentItem}");
     
-            if ($numRows > 1) {
-              $moreTasks = TRUE;
-            } else {
-              $moreTasks = FALSE;
-            }
-    
+            $moreTasks = ($numRows > 1);
     
             if (!is_null($currentItem['parent_group_id'])) {
               self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_WAIT . "' WHERE {$filterCurrentItem}");
@@ -208,7 +203,7 @@
     
     
             if (isset($currentItem['url']) && ($url = $currentItem['url'])) {
-              QueueManager::printMsg('INFO', 'Call URL: ' . $url);
+              QueueManager::printMsg('INFO', 'QueueID: #' . $currentItem['id'] . ', Call URL: ' . $url);
               $data = [];
               if (isset($currentItem['data']) && ($dataFromJson = (array)json_decode($currentItem['data'], TRUE))) {
                 $data = $dataFromJson;

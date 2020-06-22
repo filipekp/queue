@@ -128,8 +128,9 @@
         ->isNotEmpty('date_start')
         ->andL()->compare('date_start', '<', date('Y-m-d H:i:s', strtotime('-' . $this->intervalToDelete)))
         ->andL(
-          SqlFilter::create()->compare('state', '=', Queue::STATE_DONE)
-          ->orL()->compareColumns('retry_counter', '>=', 'retry')
+          SqlFilter::create()
+            ->inArray('state', [Queue::STATE_DONE, Queue::STATE_PROCESS_ASYNC])
+            ->orL()->compareColumns('retry_counter', '>=', 'retry')
         );
       
       self::$db->query("DELETE FROM {$table} WHERE {$filter}");
@@ -144,7 +145,7 @@
      * @param int    $processor
      * @param null   $groupId
      * @param null   $parentGroupId
-     * @param string $type     *
+     * @param string $type
      * @param int    $countTry
      * @param int    $delay
      *
