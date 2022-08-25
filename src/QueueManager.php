@@ -302,6 +302,11 @@
           $msg = (($msgArr = json_decode($currItem['message'], TRUE)) ? $msgArr : $currItem['message']);
           $responseWebHook = $this->callUrl($currItem['webhook_url'], (array)$msg);
           $responseWebHookStateCode = (int)((isset($responseWebHook['headers']['http_code'])) ? $responseWebHook['headers']['http_code'] : 0);
+          self::$db->query("
+            INSERT INTO queue_response
+              (queue_id, code, response_data)
+            VALUES ({$queueId}, {$responseWebHookStateCode}, '" . self::$db->escape(((is_array($result)) ? json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$result)) . "');
+          ");
         }
       }
       
