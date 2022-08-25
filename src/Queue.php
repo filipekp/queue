@@ -59,40 +59,10 @@
      * @return array
      * @throws \Exception
      */
-    protected function callUrl($link, $paramsArray = []) {
-      $ch = curl_init();
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-          'Expect:',
-          'Accept-Encoding: gzip, deflate'
-        ]);
-        curl_setopt($ch, CURLOPT_ENCODING, "gzip");
-        curl_setopt($ch, CURLOPT_URL, $link);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-        curl_setopt($ch, CURLOPT_TIMEOUT, $this->requestTimeout);
-        curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
-        curl_setopt($ch, CURLOPT_AUTOREFERER, TRUE);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        curl_setopt($ch, CURLOPT_USERAGENT, "QueueProcessor-proclient-ver." . self::getVersion());
-        curl_setopt($ch, CURLOPT_POST, count($paramsArray));
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([json_encode($paramsArray)]));
-    
-        //execute post
-        $result = curl_exec($ch);
-        $headers = curl_getinfo($ch);
-        
-        if (($errNo = curl_errno($ch))) {
-          throw new \Exception(curl_error($ch), $errNo);
-        }
-    
-      //close connection
-      curl_close($ch);
-      
-      return [
-        'result' => $result,
-        'headers' => $headers,
-      ];
+    public function callUrl($link, $paramsArray = []) {
+      return QueueManager::callUrl($link, $paramsArray, self::getVersion());
     }
+    
   
     /**
      * Spusti zpracovani fronty.
@@ -317,7 +287,7 @@
         if (!is_null($currentItem) && $currentItem) {
           $filterCurrItem = SqlFilter::create()->compare('id', '=', $currentItem['id']);
           $currItem = self::$db->query("SELECT * FROM {$table->getFullName()} WHERE {$filterCurrItem}")->row;
-          if (!is_null($currItem['webhook_url']) && $currItem['webhook_url']) {
+          if ($currItem['process_type'] == Queue::TYPE_SYNC && !is_null($currItem['webhook_url']) && $currItem['webhook_url']) {
             QueueManager::printMsg('INFO', "Call webHookUrl `{$currentItem['webhook_url']}` ...");
             $msg = (($msgArr = json_decode($currItem['message'], TRUE)) ? $msgArr : $currItem['message']);
             $responseWebHook = $this->callUrl($currItem['webhook_url'], (array)$msg);

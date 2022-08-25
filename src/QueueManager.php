@@ -35,6 +35,8 @@
     
     protected static $isSetTimeZone = FALSE;
     
+    private static $VERSION = NULL;
+    
     
     /**
      * QueueManager constructor.
@@ -57,7 +59,19 @@
         self::$isSetTimeZone = TRUE;
       }
     }
-    
+  
+    private static function getVersion() {
+      if (is_null(self::$VERSION)) {
+        $t = filemtime(__FILE__);
+        $major = date('y', $t);
+        $minor = date('n', $t) . round((date('j', $t) / date('t', $t)) * 100);
+        $release = date('G', $t).(int)date('i', $t).(int)date('s', $t);
+        self::$VERSION = $major . '.' . $minor . '.' . $release;
+      }
+      
+      return self::$VERSION;
+    }
+  
     /**
      * Vypíše MSG na obrazovku.
      *
@@ -90,6 +104,50 @@
       SqlTable::setPrefix($this->dbPrefix);
       
       return $this;
+    }
+  
+    /**
+     * Zavola danou URL.
+     *
+     * @param string $link
+     * @param array  $paramsArray
+     *
+     * @return array
+     * @throws \Exception
+     */
+    public static function callUrl($link, $paramsArray = [], $version = NULL) {
+      $ch = curl_init();
+      curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Expect:',
+        'Accept-Encoding: gzip, deflate'
+      ]);
+      curl_setopt($ch, CURLOPT_ENCODING, "gzip");
+      curl_setopt($ch, CURLOPT_URL, $link);
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+      curl_setopt($ch, CURLOPT_TIMEOUT, 240);
+      curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
+      curl_setopt($ch, CURLOPT_AUTOREFERER, TRUE);
+      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+      curl_setopt($ch, CURLOPT_USERAGENT, "QueueProcessor-proclient-ver." . (($version) ?: self::getVersion()));
+      curl_setopt($ch, CURLOPT_POST, count($paramsArray));
+      curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([json_encode($paramsArray)]));
+    
+      //execute post
+      $result = curl_exec($ch);
+      $headers = curl_getinfo($ch);
+    
+      if (($errNo = curl_errno($ch))) {
+        throw new \Exception(curl_error($ch), $errNo);
+      }
+    
+      //close connection
+      curl_close($ch);
+    
+      return [
+        'result' => $result,
+        'headers' => $headers,
+      ];
     }
   
   
@@ -236,6 +294,16 @@
           (queue_id, code, response_data)
         VALUES ({$queueId}, {$http_code}, '" . self::$db->escape(((is_array($result)) ? json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$result)) . "');
       ");
+      
+      if ($state == Queue::STATE_DONE && $queueId) {
+        $filterCurrItem = SqlFilter::create()->compare('id', '=', (string)$queueId);
+        $currItem = self::$db->query("SELECT * FROM {$table->getFullName()} WHERE {$filterCurrItem}")->row;
+        if ($currItem['process_type'] == Queue::TYPE_ASYNC && !is_null($currItem['webhook_url']) && $currItem['webhook_url']) {
+          $msg = (($msgArr = json_decode($currItem['message'], TRUE)) ? $msgArr : $currItem['message']);
+          $responseWebHook = $this->callUrl($currItem['webhook_url'], (array)$msg);
+          $responseWebHookStateCode = (int)((isset($responseWebHook['headers']['http_code'])) ? $responseWebHook['headers']['http_code'] : 0);
+        }
+      }
       
       return self::$db->countAffected();
     }
