@@ -469,4 +469,15 @@
     public function setIntervalToDelete(string $intervalToDelete = '7 days') {
       $this->intervalToDelete = $intervalToDelete;
     }
+  
+    /**
+     * @return Database
+     */
+    public static function getDatabase() {
+      return self::$db;
+    }
+  
+    public function __destruct() {
+      self::$db->closeConnection();
+    }
   }
