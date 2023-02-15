@@ -145,8 +145,7 @@
         } else {
           throw new DatabaseException('⚠ Error: ' . $this->connection->error . ' => ' . $sql, (int)$this->connection->errno);
         }
-      }
-    
+      }    
       return $result;
     }
   
@@ -211,6 +210,7 @@
   
       if (!$this->inTransaction($name)) {
         throw new \LogicException(
+
           '⚠ Couldn\'t call `' . __FUNCTION__ . '()`. Instance of `' . __CLASS__ . '` isn\'t in transaction `' . $name . '`.',
           10101
         );
