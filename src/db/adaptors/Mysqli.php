@@ -303,14 +303,16 @@
      * @throws DatabaseException
      */
     public function connect() {
-      $this->connection->connect($this->hostname, $this->username, $this->password, $this->database, $this->port);
-      
-      if ($this->connection->connect_error) {
-        throw new DatabaseException($this->connection->connect_error, $this->connection->connect_errno);
+      if (!$this->isConnected()) {
+        $this->connection->connect($this->hostname, $this->username, $this->password, $this->database, $this->port);
+        
+        if ($this->connection->connect_error) {
+          throw new DatabaseException($this->connection->connect_error, $this->connection->connect_errno);
+        }
+    
+        $this->connection->set_charset("utf8");
+        $this->connection->query("SET SQL_MODE = ''");
       }
-  
-      $this->connection->set_charset("utf8");
-      $this->connection->query("SET SQL_MODE = ''");
       
       return TRUE;
     }
@@ -322,11 +324,11 @@
      */
     public function closeConnection() {
       if ($this->isConnected()) {
-        return $this->connection->close();
-//
-//        $thread = $this->connection->thread_id;
-//        @$this->connection->close();
-//        return @$this->connection->kill($thread);
+        $thread = $this->connection->thread_id;
+        @$this->connection->kill($thread);
+        @$this->connection->close();
+        
+        return TRUE;
       }
     }
   }
