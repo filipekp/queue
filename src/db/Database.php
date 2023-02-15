@@ -171,6 +171,7 @@
   
     /**
      * @return bool
+     * @throws DatabaseException
      */
     public function connect() {
       return $this->adaptor->connect();
@@ -178,6 +179,7 @@
   
     /**
      * @return bool
+     * @throws DatabaseException
      */
     public function reconnect() {
       return $this->adaptor->reconnect();
@@ -185,6 +187,7 @@
   
     /**
      * @return bool
+     * @throws DatabaseException
      */
     public function closeConnection() {
       return $this->adaptor->closeConnection();

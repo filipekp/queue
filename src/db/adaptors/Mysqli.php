@@ -60,55 +60,55 @@
      */
     private function queryExec($sql) {
       $this->connection->multi_query($sql);
-      
+    
       if (!$this->connection->errno) {
         $this->isMultiQuery = $this->connection->more_results();
         $data               = [];
-        
+      
         if ($this->isMultiQuery) {
           do {
             if (($result = $this->connection->store_result()) instanceof \mysqli_result) {
               while ($rowArray = $result->fetch_assoc()) {
                 $dataResult[] = $rowArray;
               }
-              
+            
               $resultClass           = new \stdClass();
               $resultClass->num_rows = $result->num_rows;
               $resultClass->row      = isset($dataResult[0]) ? $dataResult[0] : [];
               $resultClass->rows     = $dataResult;
-              
+            
               $data[] = $resultClass;
-              
+            
               $result->close();
             } else {
               $this->countAffected += $this->connection->affected_rows;
               $data[]              = TRUE;
             }
-            
-          } while ($this->connection->more_results() && $this->connection->next_result());
           
+          } while ($this->connection->more_results() && $this->connection->next_result());
+        
           return $data;
         } else {
           $query = $this->connection->store_result();
-          
+        
           if ($query instanceof \mysqli_result) {
             $data = [];
-            
+          
             while ($row = $query->fetch_assoc()) {
               $data[] = $row;
             }
-            
+          
             $result           = new \stdClass();
             $result->num_rows = $query->num_rows;
             $result->row      = isset($data[0]) ? $data[0] : [];
             $result->rows     = $data;
-            
+          
             $query->close();
-            
+          
             return $result;
           } else {
             $this->countAffected = $this->connection->affected_rows;
-            
+          
             return TRUE;
           }
         }
@@ -126,29 +126,27 @@
      */
     public function query($sql, &$currentTry = NULL) {
       $this->countAffected = 0;
-      $currentTry          = ((is_null($currentTry)) ? $this->tryQuery : $currentTry);
-      
+      $currentTry = $this->tryQuery;
+      $this->currentTry = 1;
+      $result = FALSE;
+    
       try {
-        try {
-          $r = $this->queryExec($sql);
-        } catch (\ErrorException $e) {
-          if (in_array($e->getCode(), self::$errors) && $currentTry > 0) {
+        $result = $this->queryExec($sql);
+      } catch (\ErrorException $e) {
+        if (in_array($e->getCode(), self::$errors) && $currentTry > 0) {
+          while ($currentTry && !($result = $this->queryExec($sql))) {
             $currentTry--;
-            usleep(100000);
-            $r = $this->query($sql, $currentTry);
-          } else {
-            throw new \Exception('⚠ Error: ' . $this->connection->error . ' => ' .  $sql, $this->connection->errno);
+            $this->currentTry++;
+            sleep(1);
           }
+          if (!$currentTry) {
+            throw $e;
+          }
+        } else {
+          throw new DatabaseException('⚠ Error: ' . $this->connection->error . ' => ' . $sql, (int)$this->connection->errno);
         }
-      } catch (\Exception $exp) {
-        if ($this->inTransaction) {
-          $this->rollback();
-        }
-        
-        throw new DatabaseException($exp->getMessage(), $exp->getCode());
-      }
-      
-      return $r;
+      }    
+      return $result;
     }
   
     /**
@@ -161,7 +159,7 @@
   
       if ($this->inTransaction($name)) {
         throw new \LogicException(
-          '⚠ Couldn\'t call ' . __FUNCTION__ . '(). Instance of ' . __CLASS__ . ' in transaction `' . $name . '`.',
+          '⚠ Couldn\'t call `' . __FUNCTION__ . '()`. Instance of `' . __CLASS__ . '` in transaction `' . $name . '`.',
           10100
         );
       }
@@ -187,7 +185,7 @@
   
       if (!$this->inTransaction($name)) {
         throw new \LogicException(
-          '⚠ Couldn\'t call ' . __FUNCTION__ . '(). Instance of ' . __CLASS__ . ' isn\'t in transaction `' . $name . '`.',
+          '⚠ Couldn\'t call `' . __FUNCTION__ . '()`. Instance of `' . __CLASS__ . '` isn\'t in transaction `' . $name . '`.',
           10110
         );
       }
@@ -212,7 +210,8 @@
   
       if (!$this->inTransaction($name)) {
         throw new \LogicException(
-          '⚠ Couldn\'t call ' . __FUNCTION__ . '(). Instance of ' . __CLASS__ . ' isn\'t in transaction `' . $name . '`.',
+
+          '⚠ Couldn\'t call `' . __FUNCTION__ . '()`. Instance of `' . __CLASS__ . '` isn\'t in transaction `' . $name . '`.',
           10101
         );
       }
