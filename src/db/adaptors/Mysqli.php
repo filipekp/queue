@@ -49,6 +49,7 @@
       $this->port     = $port;
       
       $this->connection = new \mysqli();
+      $this->connection->options(MYSQLI_OPT_CONNECT_TIMEOUT, 65);
       $this->connect();
     }
   
@@ -321,9 +322,11 @@
      */
     public function closeConnection() {
       if ($this->isConnected()) {
-        $thread = $this->connection->thread_id;
-        @$this->connection->close();
-        return @$this->connection->kill($thread);
+        return $this->connection->close();
+//
+//        $thread = $this->connection->thread_id;
+//        @$this->connection->close();
+//        return @$this->connection->kill($thread);
       }
     }
   }
