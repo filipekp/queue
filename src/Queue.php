@@ -175,12 +175,12 @@
             if (isset($currentItem['url']) && ($url = $currentItem['url'])) {
               QueueManager::printMsg('INFO', 'QueueID: #' . $currentItem['id'] . ', Call URL: ' . $url);
               $data = [];
-              if (isset($currentItem['data']) && ($dataFromJson = (array)json_decode($currentItem['data'], TRUE))) {
+              if (isset($currentItem['data']) && ($dataFromJson = (array)json_decode($currentItem['data']))) {
                 $data = $dataFromJson;
               }
               
-              if ($currentItem['process_type'] == self::TYPE_ASYNC && isset($data[self::PARAM_WEB_HOOK_URL])) {
-                $data[self::PARAM_WEB_HOOK_URL] = vsprintf($data[self::PARAM_WEB_HOOK_URL], [QueueManager::getWebhookHash($currentItem['id'])]);
+              if ($currentItem['process_type'] == self::TYPE_ASYNC && isset($data->{self::PARAM_WEB_HOOK_URL})) {
+                $data->{self::PARAM_WEB_HOOK_URL} = vsprintf($data->{self::PARAM_WEB_HOOK_URL}, [QueueManager::getWebhookHash($currentItem['id'])]);
               }
   
               self::$db->query("INSERT INTO queue_request (queue_id, endpoint) VALUES ({$currentItem['id']}, '{$url}');");
