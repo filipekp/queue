@@ -7,7 +7,7 @@
   use PF\helpers\SqlFilter;
   use PF\helpers\SqlTable;
   use PF\helpers\Verifier;
-
+  
   /**
    * Class QueueProcessor checks db, call workers and process all stuff
    *
@@ -22,19 +22,19 @@
     protected $processor = 0;
     protected $requestTimeout = 240;
     protected $processPID;
-  
+    
     const STATE_NEW           = 'new';
     const STATE_PROCESS       = 'process';
     const STATE_PROCESS_ASYNC = 'process_async';
     const STATE_WAIT          = 'wait';
     const STATE_ERROR         = 'error';
     const STATE_DONE          = 'done';
-  
+    
     const TYPE_SYNC  = 'sync';
     const TYPE_ASYNC = 'async';
     
     const PARAM_WEB_HOOK_URL = 'web_hook_url';
-  
+    
     private static $VERSION = '___VERSION_N/A___';
     
     public function __construct(Database $database, $processor) {
@@ -49,7 +49,7 @@
       $release = date('G', $t).(int)date('i', $t).(int)date('s', $t);
       self::$VERSION = $major . '.' . $minor . '.' . $release;
     }
-  
+    
     /**
      * Zavola danou URL.
      *
@@ -63,7 +63,7 @@
       return QueueManager::callUrl($link, $paramsArray, self::getVersion());
     }
     
-  
+    
     /**
      * Spusti zpracovani fronty.
      *
@@ -108,7 +108,7 @@
           $queueResultErr = self::$db->query("SELECT * FROM {$table} WHERE {$filterErr} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,2");
           $numRows = $queueResultErr->num_rows;
           $currentItem = $queueResultErr->row;
-  
+          
           if ($numRows == 0) {
             $filterReserveItems = SqlFilter::create()->compare('state', '=', self::STATE_NEW)->andL()->isEmpty('processing_pid')->andL()->compare('queue_processor_id', '=', $this->processor);
             if (!$moreTasks) {
@@ -117,24 +117,24 @@
             } else {
               self::$db->query("UPDATE {$table->getFullName()}	SET	processing_pid = '" . $this->processPID . "' WHERE {$filterReserveItems} ORDER BY date_added ASC, id ASC LIMIT 1");
             }
-          
+            
             $filter      = SqlFilter::create()->compare($table->column('state'), '=', self::STATE_NEW)->andL()->compare($table->column('queue_processor_id'), '=', $this->processor)->andL()->compare($table->column('processing_pid'), '=', $this->processPID);
             $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,2");
             $numRows = $queueResult->num_rows;
             $currentItem = $queueResult->row;
           }
-  
+          
           if ($numRows > 0) {
             $filterCurrentItem = SqlFilter::create()->compare('id', '=', $currentItem['id']);
-    
+            
             self::$db->query("UPDATE {$table->getFullName()} SET state='" . self::STATE_PROCESS . "', date_start='" . date('Y-m-d H:i:s') . "', date_end = NULL, retry_counter=(retry_counter + 1), delay = (CASE WHEN delay = 0 THEN 30 ELSE delay * 2 END) WHERE {$filterCurrentItem}");
-    
+            
             $moreTasks = ($numRows > 1);
-    
+            
             if (!is_null($currentItem['parent_group_id'])) {
               self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_WAIT . "' WHERE {$filterCurrentItem}");
               $currItem = self::$db->query("SELECT * FROM {$table->getFullName()} WHERE {$filterCurrentItem}")->row;
-  
+              
               $filter4 = SqlFilter::create()
                 ->inArray($table->column('state'), [self::STATE_NEW, self::STATE_PROCESS, self::STATE_WAIT])
                 ->andL()->compare($table->column('group_id'), '=', $currentItem['parent_group_id']);
@@ -165,13 +165,13 @@
                   if ($existsErrorChildResult->num_rows > 0) {
                     throw new \Exception("Some children ended with error state.", 504);
                   }
-  
+                  
                   self::$db->query("UPDATE {$table->getFullName()}	SET state='" . self::STATE_PROCESS . "', date_start='" . date('Y-m-d H:i:s') . "' WHERE {$filterCurrentItem}");
                 }
               }
             }
-    
-    
+            
+            
             if (isset($currentItem['url']) && ($url = $currentItem['url'])) {
               QueueManager::printMsg('INFO', 'QueueID: #' . $currentItem['id'] . ', Call URL: ' . $url);
               $data = [];
@@ -179,10 +179,10 @@
                 $data = $dataFromJson;
               }
               
-              if ($currentItem['process_type'] == self::TYPE_ASYNC && isset($data->{self::PARAM_WEB_HOOK_URL})) {
-                $data->{self::PARAM_WEB_HOOK_URL} = vsprintf($data->{self::PARAM_WEB_HOOK_URL}, [QueueManager::getWebhookHash($currentItem['id'])]);
+              if ($currentItem['process_type'] == self::TYPE_ASYNC && isset($data[self::PARAM_WEB_HOOK_URL])) {
+                $data[self::PARAM_WEB_HOOK_URL] = vsprintf($data[self::PARAM_WEB_HOOK_URL], [QueueManager::getWebhookHash($currentItem['id'])]);
               }
-  
+              
               self::$db->query("INSERT INTO queue_request (queue_id, endpoint) VALUES ({$currentItem['id']}, '{$url}');");
               
               $result      = $this->callUrl($url, $data);
@@ -205,20 +205,20 @@
                 $responseResult = $response;
                 $state = self::STATE_ERROR;
               }
-      
+              
               self::$db->query("UPDATE {$table->getFullName()}
                 SET state='" . $state . "',
                 state_code='" . $stateCode . "',
                 message='" . self::$db->escape(((is_array($responseResult)) ? json_encode($responseResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$responseResult)) . "'" .
                 (($currentItem['process_type'] == self::TYPE_SYNC || $state == self::STATE_ERROR) ? ", date_end='" . date('Y-m-d H:i:s') . "'" : '') .
                 "WHERE {$filterCurrentItem}");
-  
+              
               self::$db->query("
                 INSERT INTO queue_response
                   (queue_id, code, response_data)
                 VALUES ({$currentItem['id']}, {$stateCode}, '" . self::$db->escape(((is_array($responseResult)) ? json_encode($responseResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$responseResult)) . "');
               ");
-              
+
 //              // zaslani vysledku na webhook URL
 //              if (!is_null($currentItem['webhook_url']) && $currentItem['webhook_url']) {
 //                QueueManager::printMsg(strtoupper($state), "Call webHookUrl `{$currentItem['webhook_url']}` ...");
@@ -247,7 +247,7 @@
               } catch (DatabaseException $e) {
                 QueueManager::printMsg("ERROR ({$e->getCode()})", $e->getMessage());
               }
-  
+              
               $countTryReconnectCounter++;
             }
             
@@ -270,7 +270,7 @@
               message='" . self::$db->escape($e->getMessage()) . "',
               date_end='" . date('Y-m-d H:i:s') . "'
               WHERE {$filterCurrentItem}");
-    
+            
             self::$db->query("
               INSERT INTO queue_response
                 (queue_id, code, response_data)
@@ -295,14 +295,14 @@
             QueueManager::printMsg('INFO', "WebHookUrl `{$currItem['webhook_url']}` response with state `{$responseWebHookStateCode}`.");
           }
         }
-  
+        
         if (!$moreTasks) {
           self::$db->closeConnection();
           sleep(60);
         }
       }
     }
-  
+    
     /**
      * Nastavi timeout pro požadavek cURL.
      *
@@ -315,7 +315,7 @@
       
       return $this;
     }
-  
+    
     /**
      * Vrátí aktuální verzi konektoru.
      *
