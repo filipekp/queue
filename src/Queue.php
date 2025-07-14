@@ -127,6 +127,7 @@
           if ($numRows > 0) {
             $filterCurrentItem = SqlFilter::create()->compare('id', '=', $currentItem['id']);
             
+            self::$db->beginTransaction();
             self::$db->query("UPDATE {$table->getFullName()} SET state='" . self::STATE_PROCESS . "', date_start='" . date('Y-m-d H:i:s') . "', date_end = NULL, retry_counter=(retry_counter + 1), delay = (CASE WHEN delay = 0 THEN 30 ELSE delay * 2 END) WHERE {$filterCurrentItem}");
             
             $moreTasks = ($numRows > 1);
@@ -170,7 +171,7 @@
                 }
               }
             }
-            
+            self::$db->commit();
             
             if (isset($currentItem['url']) && ($url = $currentItem['url'])) {
               QueueManager::printMsg('INFO', 'QueueID: #' . $currentItem['id'] . ', Call URL: ' . $url);
@@ -206,12 +207,14 @@
                 $state = self::STATE_ERROR;
               }
               
+              self::$db->beginTransaction();
               self::$db->query("UPDATE {$table->getFullName()}
                 SET state='" . $state . "',
                 state_code='" . $stateCode . "',
                 message='" . self::$db->escape(((is_array($responseResult)) ? json_encode($responseResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : (string)$responseResult)) . "'" .
                 (($currentItem['process_type'] == self::TYPE_SYNC || $state == self::STATE_ERROR) ? ", date_end='" . date('Y-m-d H:i:s') . "'" : '') .
                 "WHERE {$filterCurrentItem}");
+              self::$db->commit();
               
               self::$db->query("
                 INSERT INTO queue_response
