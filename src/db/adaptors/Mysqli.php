@@ -175,7 +175,7 @@
           while ($currentTry && !($result = $this->queryExec($sql))) {
             $currentTry--;
             $this->currentTry++;
-            sleep(1);
+            usleep(100*1000);
           }
           if (!$currentTry) {
             throw $e;
