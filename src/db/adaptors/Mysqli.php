@@ -49,6 +49,7 @@
       $this->port     = $port;
       
       $this->connection = new \mysqli();
+      $this->connection->options(MYSQLI_OPT_CONNECT_TIMEOUT, 65);
       $this->connect();
     }
   
@@ -58,62 +59,99 @@
      * @return array|bool|\mysqli_result|\stdClass
      * @throws DatabaseException|\ErrorException
      */
-    private function queryExec($sql) {
-      $this->connection->multi_query($sql);
+//    private function queryExec($sql) {
+//      $this->connection->multi_query($sql);
+//
+//      if (!$this->connection->errno) {
+//        $this->isMultiQuery = $this->connection->more_results();
+//        $data               = [];
+//
+//        if ($this->isMultiQuery) {
+//          do {
+//            if (($result = $this->connection->store_result()) instanceof \mysqli_result) {
+//              while ($rowArray = $result->fetch_assoc()) {
+//                $dataResult[] = $rowArray;
+//              }
+//
+//              $resultClass           = new \stdClass();
+//              $resultClass->num_rows = $result->num_rows;
+//              $resultClass->row      = isset($dataResult[0]) ? $dataResult[0] : [];
+//              $resultClass->rows     = $dataResult;
+//
+//              $data[] = $resultClass;
+//
+//              $result->close();
+//            } else {
+//              $this->countAffected += $this->connection->affected_rows;
+//              $data[]              = TRUE;
+//            }
+//
+//          } while ($this->connection->more_results() && $this->connection->next_result());
+//
+//          return $data;
+//        } else {
+//          $query = $this->connection->store_result();
+//
+//          if ($query instanceof \mysqli_result) {
+//            $data = [];
+//
+//            while ($row = $query->fetch_assoc()) {
+//              $data[] = $row;
+//            }
+//
+//            $result           = new \stdClass();
+//            $result->num_rows = $query->num_rows;
+//            $result->row      = isset($data[0]) ? $data[0] : [];
+//            $result->rows     = $data;
+//
+//            $query->close();
+//
+//            return $result;
+//          } else {
+//            $this->countAffected = $this->connection->affected_rows;
+//
+//            return TRUE;
+//          }
+//        }
+//      } else {
+//        throw new DatabaseException($this->connection->error, $this->connection->errno);
+//      }
+//    }
     
-      if (!$this->connection->errno) {
-        $this->isMultiQuery = $this->connection->more_results();
-        $data               = [];
+    
+    
+    /**
+     * @param $sql
+     *
+     * @return array|bool|\mysqli_result|\stdClass
+     * @throws \ErrorException
+     */
+    private function queryExec($sql) {
+      $query = $this->connection->query($sql);
       
-        if ($this->isMultiQuery) {
-          do {
-            if (($result = $this->connection->store_result()) instanceof \mysqli_result) {
-              while ($rowArray = $result->fetch_assoc()) {
-                $dataResult[] = $rowArray;
-              }
-            
-              $resultClass           = new \stdClass();
-              $resultClass->num_rows = $result->num_rows;
-              $resultClass->row      = isset($dataResult[0]) ? $dataResult[0] : [];
-              $resultClass->rows     = $dataResult;
-            
-              $data[] = $resultClass;
-            
-              $result->close();
-            } else {
-              $this->countAffected += $this->connection->affected_rows;
-              $data[]              = TRUE;
-            }
+      if (!$this->connection->errno) {
+        if ($query instanceof \mysqli_result) {
+          $data = [];
           
-          } while ($this->connection->more_results() && $this->connection->next_result());
-        
-          return $data;
-        } else {
-          $query = $this->connection->store_result();
-        
-          if ($query instanceof \mysqli_result) {
-            $data = [];
-          
-            while ($row = $query->fetch_assoc()) {
-              $data[] = $row;
-            }
-          
-            $result           = new \stdClass();
-            $result->num_rows = $query->num_rows;
-            $result->row      = isset($data[0]) ? $data[0] : [];
-            $result->rows     = $data;
-          
-            $query->close();
-          
-            return $result;
-          } else {
-            $this->countAffected = $this->connection->affected_rows;
-          
-            return TRUE;
+          while ($row = $query->fetch_assoc()) {
+            $data[] = $row;
           }
+          
+          $result           = new \stdClass();
+          $result->num_rows = $query->num_rows;
+          $result->row      = isset($data[0]) ? $data[0] : [];
+          $result->rows     = $data;
+          
+          $query->free_result();
+          
+          return $result;
+        } else {
+          $this->countAffected = $this->connection->affected_rows;
+          
+          return TRUE;
         }
       } else {
-        throw new DatabaseException($this->connection->error, $this->connection->errno);
+        throw new \ErrorException($this->connection->error, $this->connection->errno);
       }
     }
   
@@ -137,7 +175,7 @@
           while ($currentTry && !($result = $this->queryExec($sql))) {
             $currentTry--;
             $this->currentTry++;
-            sleep(1);
+            usleep(100*1000);
           }
           if (!$currentTry) {
             throw $e;
@@ -302,14 +340,16 @@
      * @throws DatabaseException
      */
     public function connect() {
-      $this->connection->connect($this->hostname, $this->username, $this->password, $this->database, $this->port);
-      
-      if ($this->connection->connect_error) {
-        throw new DatabaseException($this->connection->connect_error, $this->connection->connect_errno);
+      if (!$this->isConnected()) {
+        $this->connection->connect($this->hostname, $this->username, $this->password, $this->database, $this->port);
+        
+        if ($this->connection->connect_error) {
+          throw new DatabaseException($this->connection->connect_error, $this->connection->connect_errno);
+        }
+    
+        $this->connection->set_charset("utf8");
+        $this->connection->query("SET SQL_MODE = ''");
       }
-  
-      $this->connection->set_charset("utf8");
-      $this->connection->query("SET SQL_MODE = ''");
       
       return TRUE;
     }
@@ -320,8 +360,12 @@
      * @return bool
      */
     public function closeConnection() {
-      $thread = $this->connection->thread_id;
-      @$this->connection->close();
-      return @$this->connection->kill($thread);
+      if ($this->isConnected()) {
+        $thread = $this->connection->thread_id;
+        @$this->connection->kill($thread);
+        @$this->connection->close();
+        
+        return TRUE;
+      }
     }
   }
