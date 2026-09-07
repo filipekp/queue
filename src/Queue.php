@@ -140,7 +140,7 @@
                         ->andL()->compare($table->column('processing_pid'), '=', $this->processPID)
                         ->andL()->inArray($table->column('state'), [self::STATE_NEW, self::STATE_ERROR]);
                     
-                    $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,2");
+                    $queueResult = self::$db->query("SELECT * FROM {$table->getFullName()} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,2");
                     $numRows     = $queueResult->num_rows;
                     $currentItem = $queueResult->row;
                     
@@ -164,7 +164,7 @@
                                 self::STATE_PROCESS,
                                 self::STATE_WAIT
                             ])->andL()->compare($table->column('group_id'), '=', $currentItem['parent_group_id']);
-                            $countChildrenResult = self::$db->query("SELECT COUNT(id) as `count` FROM {$table} WHERE {$filter4}");
+                            $countChildrenResult = self::$db->query("SELECT COUNT(id) as `count` FROM {$table->getFullName()} WHERE {$filter4}");
                             $countChildren       = $countChildrenResult->row['count'];
                             $maxTimeout          = ($countChildren * $this->requestTimeout) + 240;
                             
@@ -179,14 +179,14 @@
                                     self::STATE_PROCESS,
                                     self::STATE_WAIT
                                 ])->andL()->compare($table->column('processing_pid'), '<>', $this->processPID)->andL()->compare($table->column('group_id'), '=', $currentItem['parent_group_id']);
-                                $queueParentResult = self::$db->query("SELECT id FROM {$table} WHERE {$filter2} LIMIT 0,1");
+                                $queueParentResult = self::$db->query("SELECT id FROM {$table->getFullName()} WHERE {$filter2} LIMIT 0,1");
                                 $waiting           = ($queueParentResult->num_rows > 0);
                                 
                                 if ($waiting) {
                                     sleep(5);
                                 } else {
                                     $filter3                = SqlFilter::create()->inArray($table->column('state'), [self::STATE_ERROR])->andL()->compare($table->column('group_id'), '=', $currentItem['parent_group_id']);
-                                    $existsErrorChildResult = self::$db->query("SELECT id FROM {$table} WHERE {$filter3} LIMIT 0,1");
+                                    $existsErrorChildResult = self::$db->query("SELECT id FROM {$table->getFullName()} WHERE {$filter3} LIMIT 0,1");
                                     if ($existsErrorChildResult->num_rows > 0) {
                                         throw new \Exception("Some children ended with error state.", 504);
                                     }
