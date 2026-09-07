@@ -98,7 +98,7 @@
                         ->andL(SqlFilter::create()->compare($table->column('retry'), '>', '0')->andL()->compareColumns($table->column('retry_counter'), '<', $table->column('retry'))->orL()->compare($table->column('retry'), '=', '-1'))
                         ->andL(SqlFilter::create()->isEmpty($table->column('date_start'))->orL()->compareColumns($table->column('date_start'), '<', "DATE_ADD({$table->column('date_start')}, INTERVAL (CASE WHEN {$table->column('delay')} = 0 THEN 30 ELSE {$table->column('delay')} * 2 END) SECOND)"));
                     
-                    $queueResultErr = self::$db->query("SELECT id FROM {$table->getFullName()} WHERE {$filterErr} ORDER BY date_added ASC, id ASC LIMIT 2 FOR UPDATE SKIP LOCKED");
+                    $queueResultErr = self::$db->query("SELECT id FROM {$table} WHERE {$filterErr} ORDER BY date_added ASC, id ASC LIMIT 2 FOR UPDATE SKIP LOCKED");
                     
                     $reservedErrIds = [];
                     foreach ($queueResultErr->rows as $row) {
@@ -120,7 +120,7 @@
                             ->andL()->compare('queue_processor_id', '=', $this->processor);
                         
                         $limit = (!$moreTasks) ? 2 : 1;
-                        $reservedQuery = self::$db->query("SELECT id FROM {$table->getFullName()} WHERE {$filterReserveItems} ORDER BY date_added ASC, id ASC LIMIT {$limit} FOR UPDATE SKIP LOCKED");
+                        $reservedQuery = self::$db->query("SELECT id FROM {$table} WHERE {$filterReserveItems} ORDER BY date_added ASC, id ASC LIMIT {$limit} FOR UPDATE SKIP LOCKED");
                         
                         $reservedIds = [];
                         foreach ($reservedQuery->rows as $row) {
@@ -140,7 +140,7 @@
                         ->andL()->compare($table->column('processing_pid'), '=', $this->processPID)
                         ->andL()->inArray($table->column('state'), [self::STATE_NEW, self::STATE_ERROR]);
                     
-                    $queueResult = self::$db->query("SELECT * FROM {$table->getFullName()} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,2");
+                    $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,2");
                     $numRows     = $queueResult->num_rows;
                     $currentItem = $queueResult->row;
                     
@@ -149,7 +149,7 @@
                         
                         // Označení stavu 'process' - Krátká transakce!
                         self::$db->beginTransaction();
-                        self::$db->query("UPDATE {$table->getFullName()} SET state='" . self::STATE_PROCESS . "', date_start='" . date('Y-m-d H:i:s') . "', date_end = NULL, retry_counter=(retry_counter + 1), delay = (CASE WHEN delay = 0 THEN 30 ELSE delay * 2 END) WHERE {$filterCurrentItem}");
+                        self::$db->query("UPDATE {$table} SET state='" . self::STATE_PROCESS . "', date_start='" . date('Y-m-d H:i:s') . "', date_end = NULL, retry_counter=(retry_counter + 1), delay = (CASE WHEN delay = 0 THEN 30 ELSE delay * 2 END) WHERE {$filterCurrentItem}");
                         self::$db->commit();
                         
                         $moreTasks = ($numRows > 1);
@@ -164,7 +164,7 @@
                                 self::STATE_PROCESS,
                                 self::STATE_WAIT
                             ])->andL()->compare($table->column('group_id'), '=', $currentItem['parent_group_id']);
-                            $countChildrenResult = self::$db->query("SELECT COUNT(id) as `count` FROM {$table->getFullName()} WHERE {$filter4}");
+                            $countChildrenResult = self::$db->query("SELECT COUNT(id) as `count` FROM {$table} WHERE {$filter4}");
                             $countChildren       = $countChildrenResult->row['count'];
                             $maxTimeout          = ($countChildren * $this->requestTimeout) + 240;
                             
@@ -179,14 +179,14 @@
                                     self::STATE_PROCESS,
                                     self::STATE_WAIT
                                 ])->andL()->compare($table->column('processing_pid'), '<>', $this->processPID)->andL()->compare($table->column('group_id'), '=', $currentItem['parent_group_id']);
-                                $queueParentResult = self::$db->query("SELECT id FROM {$table->getFullName()} WHERE {$filter2} LIMIT 0,1");
+                                $queueParentResult = self::$db->query("SELECT id FROM {$table} WHERE {$filter2} LIMIT 0,1");
                                 $waiting           = ($queueParentResult->num_rows > 0);
                                 
                                 if ($waiting) {
                                     sleep(5);
                                 } else {
                                     $filter3                = SqlFilter::create()->inArray($table->column('state'), [self::STATE_ERROR])->andL()->compare($table->column('group_id'), '=', $currentItem['parent_group_id']);
-                                    $existsErrorChildResult = self::$db->query("SELECT id FROM {$table->getFullName()} WHERE {$filter3} LIMIT 0,1");
+                                    $existsErrorChildResult = self::$db->query("SELECT id FROM {$table} WHERE {$filter3} LIMIT 0,1");
                                     if ($existsErrorChildResult->num_rows > 0) {
                                         throw new \Exception("Some children ended with error state.", 504);
                                     }
