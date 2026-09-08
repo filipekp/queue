@@ -91,24 +91,44 @@
                     
                     // 1. KROK: Rezervace chybových úloh (pro opakování)
                     self::$db->beginTransaction();
+                    
                     $filterErr = SqlFilter::create()
                         ->compare($table->column('state'), '=', self::STATE_ERROR)
                         ->andL(SqlFilter::create()->compare($table->column('state_code'), '>=', '500'))
                         ->andL()->compare($table->column('queue_processor_id'), '=', $this->processor)
-                        ->andL(SqlFilter::create()->compare($table->column('retry'), '>', '0')->andL()->compareColumns($table->column('retry_counter'), '<', $table->column('retry'))->orL()->compare($table->column('retry'), '=', '-1'))
-                        ->andL(SqlFilter::create()->isEmpty($table->column('date_start'))->orL()->compareColumns($table->column('date_start'), '<', "DATE_ADD({$table->column('date_start')}, INTERVAL (CASE WHEN {$table->column('delay')} = 0 THEN 30 ELSE {$table->column('delay')} * 2 END) SECOND)"));
-                    
-                    $queueResultErr = self::$db->query("SELECT id FROM {$table} WHERE {$filterErr} ORDER BY date_added ASC, id ASC LIMIT 2 FOR UPDATE SKIP LOCKED");
+                        // Ověření limitu pokusů
+                        ->andL(
+                            SqlFilter::create()
+                                ->compareColumns($table->column('retry_counter'), '<', $table->column('retry'))
+                                ->orL()->compare($table->column('retry'), '=', '-1')
+                        )
+                        // Kontrola exspirace podle delaye
+                        ->andL(
+                            SqlFilter::create()
+                                ->isEmpty($table->column('date_start'))
+                                ->orL()->compareColumns(
+                                    $table->column('date_start'),
+                                    '<',
+                                    "DATE_SUB(NOW(), INTERVAL (CASE WHEN {$table->column('delay')} = 0 THEN 30 ELSE {$table->column('delay')} END) SECOND)"
+                                )
+                        );
+
+                    // Vyberou se volné chybové řádky a zamknou se
+                    $queueResultErr = self::$db->query(
+                        "SELECT id FROM {$table} WHERE {$filterErr} ORDER BY date_added ASC, id ASC LIMIT 2 FOR UPDATE SKIP LOCKED"
+                    );
                     
                     $reservedErrIds = [];
                     foreach ($queueResultErr->rows as $row) {
                         $reservedErrIds[] = (int)$row['id'];
                     }
-                    
+
+                    // Označení PID a okamžitý COMMIT (uvolnění DB zámku, řádky jsou zarezervované přes processing_pid)
                     if (!empty($reservedErrIds)) {
                         $idsSql = implode(',', $reservedErrIds);
                         self::$db->query("UPDATE {$table->getFullName()} SET processing_pid = '" . $this->processPID . "' WHERE id IN ({$idsSql})");
                     }
+                    
                     self::$db->commit();
                     
                     // 2. KROK: Pokud nejsou chybové, rezervujeme 'new' úlohy
@@ -139,17 +159,31 @@
                         ->compare($table->column('queue_processor_id'), '=', $this->processor)
                         ->andL()->compare($table->column('processing_pid'), '=', $this->processPID)
                         ->andL()->inArray($table->column('state'), [self::STATE_NEW, self::STATE_ERROR]);
-                    
-                    $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY {$table->date_added} ASC, {$table->id} ASC LIMIT 0,2");
+
+                    // Zde už zamykání přes SKIP LOCKED není potřeba
+                    $queueResult = self::$db->query("SELECT * FROM {$table} WHERE {$filter} ORDER BY date_added ASC, id ASC LIMIT 0,2");
                     $numRows     = $queueResult->num_rows;
                     $currentItem = $queueResult->row;
                     
                     if ($numRows > 0) {
                         $filterCurrentItem = SqlFilter::create()->compare('id', '=', $currentItem['id']);
                         
-                        // Označení stavu 'process' - Krátká transakce!
+                        // Inkrementace retry a delay POUZE pokud šlo o chybový stav (retrying)
+                        $isRetry = ($currentItem['state'] === self::STATE_ERROR);
+                        
+                        $updateRetrySql = $isRetry ? "retry_counter = retry_counter + 1," : "";
+                        // Zamezí neomezenému růstu delaye – nastaven strop na 86400s (24h)
+                        $updateDelaySql = $isRetry ? "delay = LEAST(CASE WHEN delay = 0 THEN 30 ELSE delay * 2 END, 86400)," : "";
+                        
                         self::$db->beginTransaction();
-                        self::$db->query("UPDATE {$table} SET state='" . self::STATE_PROCESS . "', date_start='" . date('Y-m-d H:i:s') . "', date_end = NULL, retry_counter=(retry_counter + 1), delay = (CASE WHEN delay = 0 THEN 30 ELSE delay * 2 END) WHERE {$filterCurrentItem}");
+                        self::$db->query("UPDATE {$table->getFullName()} SET
+                                state = '" . self::STATE_PROCESS . "',
+                                date_start = '" . date('Y-m-d H:i:s') . "',
+                                date_end = NULL,
+                                {$updateRetrySql}
+                                {$updateDelaySql}
+                                processing_pid = '{$this->processPID}'
+                                WHERE {$filterCurrentItem}");
                         self::$db->commit();
                         
                         $moreTasks = ($numRows > 1);
@@ -286,7 +320,8 @@
               SET state='" . self::STATE_ERROR . "',
               state_code='" . $stateCode . "',
               message='" . self::$db->escape($e->getMessage()) . "',
-              date_end='" . date('Y-m-d H:i:s') . "'
+              date_end='" . date('Y-m-d H:i:s') . "',
+              processing_pid = NULL
               WHERE {$filterCurrentItem}");
                         
                         self::$db->query("
